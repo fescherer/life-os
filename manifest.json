@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "life-os",
+	"name": "Life OS",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"description": "Personal databases",
+	"author": "Fennec Tales Studio",
+	"authorUrl": "https://felipescherer.com",
+	"fundingUrl": "https://felipescherer.com",
+	"isDesktopOnly": true
 }
