@@ -1,7 +1,7 @@
 import { Modal, App, Setting, Notice } from "obsidian";
-import { slugify } from "./slugify";
+import { slugify } from "../../utils/slugify";
 
-export class JsonFormModal extends Modal {
+export class ModalForm extends Modal {
 	onSubmit: (result: Record<string, unknown>) => void;
 	result: Record<string, any>
 
@@ -21,7 +21,7 @@ export class JsonFormModal extends Modal {
 		const { contentEl } = this;
 
 		contentEl.createEl("h2", { text: "Create new Entity" });
-		const dynamicContainer = contentEl.createDiv();
+
 
 		let decimalSetting: Setting | null = null;
 
@@ -36,12 +36,19 @@ export class JsonFormModal extends Modal {
 					.addOption("string", "String")
 					.addOption("number", "Number")
 					.addOption("boolean", "Boolean")
+					.addOption("date", "Date")
+					.addOption("select", "Select")
+					.addOption("multiselect", "Multiselect")
+					.addOption("url", "Url")
+					.addOption("file", "File")
+					.addOption("array", "Array")
+					.addOption("conditional", "Conditional")
 					.setValue('string')
 					.onChange(val => {
 						this.result.type = val;
 						if (val === 'number' && !decimalSetting) {
 							decimalSetting = new Setting(dynamicContainer)
-								.setName("decimal")
+								.setName("Decimal dot")
 								.addText(text => {
 									text.inputEl.type = "number";
 									text.onChange(val => (this.result.decimal = val))
@@ -55,6 +62,7 @@ export class JsonFormModal extends Modal {
 					})
 			);
 
+		const dynamicContainer = contentEl.createDiv();
 		new Setting(contentEl)
 			.addButton(btn =>
 				btn

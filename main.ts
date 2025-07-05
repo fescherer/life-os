@@ -2,7 +2,7 @@ import { Plugin } from "obsidian";
 import { createNewFolderInCurrentDir } from "src/utils/createFolder";
 import { createMarkdownWithJson } from "src/utils/createMDFile";
 import { getFolderName } from "src/utils/folderName";
-import { JsonFormModal } from "src/utils/modal";
+import { ModalForm } from "src/modal/form/modal";
 
 
 export default class DynamicInterfacePlugin extends Plugin {
@@ -16,7 +16,7 @@ export default class DynamicInterfacePlugin extends Plugin {
 			await createNewFolderInCurrentDir(this.app, folderName)
 
 
-			new JsonFormModal(this.app, async (result) => {
+			new ModalForm(this.app, async (result) => {
 				console.log("Form data:", result);
 				await createMarkdownWithJson(this.app, folderName, result)
 			}).open();
