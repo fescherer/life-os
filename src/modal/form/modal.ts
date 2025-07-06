@@ -1,18 +1,23 @@
 import { Modal, App, Setting, Notice } from "obsidian";
 import { slugify } from "../../utils/slugify";
+import { giveTypeFields } from "./type-field";
+import { TTypeField } from "src/types/field";
 
 export class ModalForm extends Modal {
-	onSubmit: (result: Record<string, unknown>) => void;
+	onSubmit: (isValid: boolean, result: Record<string, unknown>) => void;
 	result: Record<string, any>
+	isValid: boolean
+	fields: Record<string, any>
 
-	constructor(app: App, onSubmit: (result: Record<string, unknown>) => void) {
+	constructor(app: App, onSubmit: (isValid: boolean, result: Record<string, unknown>) => void) {
 		super(app);
 		this.onSubmit = onSubmit;
 		this.result = {
-			name: '',
 			label: '',
-			type: 'string'
+			type: 'string',
+			fields: []
 		}
+		this.isValid = false
 	}
 
 
@@ -21,9 +26,6 @@ export class ModalForm extends Modal {
 		const { contentEl } = this;
 
 		contentEl.createEl("h2", { text: "Create new Entity" });
-
-
-		let decimalSetting: Setting | null = null;
 
 		new Setting(contentEl)
 			.setName("Name")
@@ -44,21 +46,9 @@ export class ModalForm extends Modal {
 					.addOption("array", "Array")
 					.addOption("conditional", "Conditional")
 					.setValue('string')
-					.onChange(val => {
+					.onChange((val: TTypeField) => {
 						this.result.type = val;
-						if (val === 'number' && !decimalSetting) {
-							decimalSetting = new Setting(dynamicContainer)
-								.setName("Decimal dot")
-								.addText(text => {
-									text.inputEl.type = "number";
-									text.onChange(val => (this.result.decimal = val))
-								});
-						} else {
-							if (decimalSetting) {
-								decimalSetting.settingEl.remove();
-								decimalSetting = null;
-							}
-						}
+						giveTypeFields(val, dynamicContainer, this.fields)
 					})
 			);
 
@@ -70,11 +60,13 @@ export class ModalForm extends Modal {
 					.setCta()
 					.onClick(() => {
 						if (this.formIsFilled()) {
-							this.close();
-							this.onSubmit({
+							this.onSubmit(true, {
 								entity: slugify(this.result.label || ''),
-								...this.result
+								...this.result,
+								fields: this.fields
 							});
+							this.close();
+							return true
 						} else {
 							new Notice("Fill all the fields");
 						}
@@ -83,9 +75,9 @@ export class ModalForm extends Modal {
 	}
 
 	onClose() {
-		const { contentEl } = this;
 		new Notice("You close before saving. Creating with default values! ");
-		this.onSubmit({
+		const { contentEl } = this;
+		this.onSubmit(false, {
 			name: "Default Name",
 			type: "string",
 		});
@@ -93,7 +85,8 @@ export class ModalForm extends Modal {
 	}
 
 	formIsFilled(): boolean {
-		return this.result && this.result.name && this.result.type;
+		console.log(this.result)
+		return this.result && this.result.label && this.result.type;
 	}
 }
 

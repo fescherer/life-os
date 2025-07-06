@@ -12,13 +12,13 @@ export default class DynamicInterfacePlugin extends Plugin {
 		console.log("Loading Fennec Tales Studio's Plugin");
 
 		this.addRibbonIcon("table", "Create new schema", async () => {
-			const folderName = getFolderName(this.app, 'NewFolder');
-			await createNewFolderInCurrentDir(this.app, folderName)
-
-
-			new ModalForm(this.app, async (result) => {
+			new ModalForm(this.app, async (isValid, result) => {
 				console.log("Form data:", result);
-				await createMarkdownWithJson(this.app, folderName, result)
+				if (isValid) {
+					const folderName = getFolderName(this.app, 'NewFolder');
+					await createNewFolderInCurrentDir(this.app, folderName)
+					await createMarkdownWithJson(this.app, folderName, result)
+				}
 			}).open();
 		})
 	}
