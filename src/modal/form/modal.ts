@@ -1,20 +1,19 @@
 import { Modal, App, Setting, Notice } from "obsidian";
 import { slugify } from "../../utils/slugify";
-import { giveTypeFields } from "./type-field";
-import { TTypeField } from "src/types/field";
+import { TField, TTypeField } from "src/types/field";
+import { giveTypeField } from "./type-field";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: Record<string, unknown>) => void;
 	result: Record<string, any>
 	isValid: boolean
-	fields: Record<string, any>
+	fields: Array<TField> = []
 
 	constructor(app: App, onSubmit: (isValid: boolean, result: Record<string, unknown>) => void) {
 		super(app);
 		this.onSubmit = onSubmit;
 		this.result = {
 			label: '',
-			type: 'string',
 			fields: []
 		}
 		this.isValid = false
@@ -31,27 +30,50 @@ export class ModalForm extends Modal {
 			.setName("Name")
 			.addText(text => text.onChange(val => (this.result.label = val)));
 
+
 		new Setting(contentEl)
-			.setName("Type")
-			.addDropdown(drop =>
-				drop
-					.addOption("string", "String")
-					.addOption("number", "Number")
-					.addOption("boolean", "Boolean")
-					.addOption("date", "Date")
-					.addOption("select", "Select")
-					.addOption("multiselect", "Multiselect")
-					.addOption("url", "Url")
-					.addOption("file", "File")
-					.addOption("array", "Array")
-					.addOption("conditional", "Conditional")
-					.setValue('string')
-					.onChange((val: TTypeField) => {
-						this.result.type = val;
-						giveTypeFields(val, dynamicContainer, this.fields)
+			.addButton(btn =>
+				btn
+					.setButtonText("Add Field")
+					.setCta()
+					.onClick(() => {
+						const newField: TField = {
+							name: '',
+							label: '',
+							type: 'string'
+						}
+						this.fields.push(newField)
+
+						new Setting(contentEl)
+							.setName("Field Name")
+							.addText(text => text.onChange(val => {
+								newField.label = val
+								newField.name = slugify(val)
+							}));
+						new Setting(contentEl)
+							.setName("Field Type")
+							.addDropdown(drop =>
+								drop
+									.addOption("string", "String")
+									.addOption("number", "Number")
+									.addOption("boolean", "Boolean")
+									.addOption("date", "Date")
+									.addOption("select", "Select")
+									.addOption("multiselect", "Multiselect")
+									.addOption("url", "Url")
+									.addOption("file", "File")
+									.addOption("array", "Array")
+									.addOption("conditional", "Conditional")
+									.setValue('string')
+									.onChange((val: TTypeField) => {
+										newField.type = val
+										giveTypeField(val, dynamicContainer, newField)
+									})
+							);
+
+
 					})
 			);
-
 		const dynamicContainer = contentEl.createDiv();
 		new Setting(contentEl)
 			.addButton(btn =>
@@ -75,18 +97,18 @@ export class ModalForm extends Modal {
 	}
 
 	onClose() {
-		new Notice("You close before saving. Creating with default values! ");
-		const { contentEl } = this;
-		this.onSubmit(false, {
-			name: "Default Name",
-			type: "string",
-		});
-		contentEl.empty();
+		// new Notice("You close before saving. Creating with default values! ");
+		// const { contentEl } = this;
+		// this.onSubmit(false, {
+		// 	name: "Default Name",
+		// 	type: "string",
+		// });
+		// contentEl.empty();
 	}
 
 	formIsFilled(): boolean {
 		console.log(this.result)
-		return this.result && this.result.label && this.result.type;
+		return this.result && this.result.label;
 	}
 }
 

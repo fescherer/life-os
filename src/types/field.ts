@@ -19,12 +19,12 @@ export interface TNumberField extends TBaseField {
 
 export interface TSelectField extends TBaseField {
 	type: 'select'
-	options: TOptionItem
+	options: Array<TOptionItem>
 }
 
 export interface TMultiSelectField extends TBaseField {
 	type: 'multiselect'
-	options: TOptionItem
+	options: Array<TOptionItem>
 }
 
 export interface TConditionalField extends TBaseField {
@@ -38,6 +38,8 @@ export type TOptionItem = {
 	id: string
 	title: string
 }
+
+export type TField = TBaseField | TNumberField | TSelectField | TMultiSelectField | TConditionalField
 
 export type TData = {
 	entity: string
