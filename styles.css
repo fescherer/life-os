@@ -6,3 +6,31 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.field-group-wrapper {
+	border: 1px solid var(--background-modifier-border);
+	padding: 10px;
+	margin-bottom: 10px;
+	border-radius: 8px;
+	background-color: var(--background-secondary);
+
+	.setting-item {
+		border-top: 0;
+	}
+}
+
+.field-group-header {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+}
+
+.delete-icon {
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: color 0.2s ease;
+}
+
+.delete-icon:hover {
+	color: var(--text-danger);
+}

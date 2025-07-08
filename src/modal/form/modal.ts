@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice } from "obsidian";
+import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
 import { TField, TTypeField } from "src/types/field";
 import { giveTypeField } from "./type-field";
@@ -37,6 +37,11 @@ export class ModalForm extends Modal {
 					.setButtonText("Add Field")
 					.setCta()
 					.onClick(() => {
+						const container = wrapper.createDiv({ cls: "field-group-wrapper" });
+						const deleteBtn = container.createEl("div", { cls: "delete-icon" });
+						setIcon(deleteBtn, "trash");
+						deleteBtn.onclick = () => container.remove();
+
 						const newField: TField = {
 							name: '',
 							label: '',
@@ -44,14 +49,13 @@ export class ModalForm extends Modal {
 						}
 						this.fields.push(newField)
 
-						new Setting(contentEl)
+						new Setting(container)
 							.setName("Field Name")
 							.addText(text => text.onChange(val => {
 								newField.label = val
 								newField.name = slugify(val)
-							}));
-						new Setting(contentEl)
-							.setName("Field Type")
+							}))
+						new Setting(container).setName("Field Type")
 							.addDropdown(drop =>
 								drop
 									.addOption("string", "String")
@@ -67,14 +71,15 @@ export class ModalForm extends Modal {
 									.setValue('string')
 									.onChange((val: TTypeField) => {
 										newField.type = val
-										giveTypeField(val, dynamicContainer, newField)
+										giveTypeField(val, container, newField)
 									})
 							);
 
 
+
 					})
 			);
-		const dynamicContainer = contentEl.createDiv();
+		const wrapper = contentEl.createDiv();
 		new Setting(contentEl)
 			.addButton(btn =>
 				btn
