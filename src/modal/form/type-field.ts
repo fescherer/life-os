@@ -1,35 +1,17 @@
 import { Notice, Setting } from "obsidian";
-import { TField, TMultiSelectField, TNumberField, TSelectField, TTypeField } from "src/types/field";
+import { TField, TTypeField } from "src/types/field";
 import { slugify } from "src/utils/slugify";
+import { createNewField } from "./createNewField";
 
 let extraField: Record<string, Setting> = {}
 
-function isNumberField(field: TField): field is TNumberField {
-	return field.type === 'number' && 'precision' in field;
-}
-function isSelectField(field: TField): field is TSelectField {
-	return field.type === 'select' && 'options' in field;
-}
-function isMultiSelectField(field: TField): field is TMultiSelectField {
-	return field.type === 'multiselect' && 'options' in field;
-}
-
 const chooseType = {
 	'string': () => null,
-	'number': (container: HTMLDivElement, field: TField) => {
-		if (isNumberField(field))
-			generateFieldNumber(container, field)
-	},
+	'number': (container: HTMLDivElement, field: TField) => generateFieldNumber(container, field),
 	'boolean': () => null,
 	'date': () => null,
-	'select': (container: HTMLDivElement, field: TField) => {
-		if (isSelectField(field))
-			generateFieldSelect(container, field)
-	},
-	'multiselect': (container: HTMLDivElement, field: TField) => {
-		if (isMultiSelectField(field))
-			generateFieldMultiSelect(container, field)
-	},
+	'select': (container: HTMLDivElement, field: TField) => generateFieldSelect(container, field),
+	'multiselect': (container: HTMLDivElement, field: TField) => generateFieldMultiSelect(container, field),
 	'url': () => null,
 	'file': () => null,
 	'array': () => null,
@@ -40,11 +22,10 @@ export function giveTypeField(type: TTypeField, container: HTMLDivElement, field
 	const chooseTypeFn = chooseType[type];
 	Object.values(extraField).map((item) => item.settingEl.remove())
 	extraField = {}
-	field = {
-		name: '',
-		label: '',
-		type: 'string'
-	}
+	const newField = createNewField(type, field.label);
+	field.label = newField.label
+	field.name = newField.name
+	field.type = newField.type
 	if (chooseTypeFn) {
 		return chooseTypeFn(container, field);
 	} else {
@@ -52,14 +33,15 @@ export function giveTypeField(type: TTypeField, container: HTMLDivElement, field
 	}
 }
 
-function generateFieldNumber(container: HTMLDivElement, field: TNumberField) {
+function generateFieldNumber(container: HTMLDivElement, field: TField) {
+	if (field.type !== 'number') return
 	extraField['decimalSetting'] = new Setting(container)
 		.setName("Decimal dot")
 		.addText(text => {
 			text.inputEl.type = "number";
 			text.onChange(val => {
 				try {
-					(field.precision = parseInt(val))
+					field.precision = parseInt(val);
 				} catch {
 					new Notice('Error Ocurred')
 				}
@@ -67,7 +49,8 @@ function generateFieldNumber(container: HTMLDivElement, field: TNumberField) {
 		});
 }
 
-function generateFieldSelect(container: HTMLDivElement, field: TSelectField) {
+function generateFieldSelect(container: HTMLDivElement, field: TField) {
+	if (field.type !== 'select') return
 	field.options = []
 	extraField['options'] = new Setting(container)
 		.setName("Option Name")
@@ -76,7 +59,8 @@ function generateFieldSelect(container: HTMLDivElement, field: TSelectField) {
 		});
 }
 
-function generateFieldMultiSelect(container: HTMLDivElement, field: TMultiSelectField) {
+function generateFieldMultiSelect(container: HTMLDivElement, field: TField) {
+	if (field.type !== 'multiselect') return
 	field.options = []
 	extraField['options'] = new Setting(container)
 		.setName("Option Name")

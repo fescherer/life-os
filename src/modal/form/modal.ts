@@ -2,6 +2,7 @@ import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
 import { TField, TTypeField } from "src/types/field";
 import { giveTypeField } from "./type-field";
+import { createNewField } from "./createNewField";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: Record<string, unknown>) => void;
@@ -40,15 +41,14 @@ export class ModalForm extends Modal {
 						const container = wrapper.createDiv({ cls: "field-group-wrapper" });
 						const deleteBtn = container.createEl("div", { cls: "delete-icon" });
 						setIcon(deleteBtn, "trash");
-						deleteBtn.onclick = () => container.remove();
 
-						const newField: TField = {
-							name: '',
-							label: '',
-							type: 'string'
-						}
+						let newField = createNewField('string', '');
 						this.fields.push(newField)
 
+						deleteBtn.onclick = () => {
+							this.fields.remove(newField)
+							container.remove()
+						};
 						new Setting(container)
 							.setName("Field Name")
 							.addText(text => text.onChange(val => {
@@ -70,7 +70,7 @@ export class ModalForm extends Modal {
 									.addOption("conditional", "Conditional")
 									.setValue('string')
 									.onChange((val: TTypeField) => {
-										newField.type = val
+										newField = createNewField(val, newField.label);
 										giveTypeField(val, container, newField)
 									})
 							);

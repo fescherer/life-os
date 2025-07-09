@@ -9,7 +9,10 @@ export type TTypeField = 'string' | 'number' | 'boolean' | 'date' | 'select' | '
 export type TBaseField = {
 	name: string
 	label: string
-	type: TTypeField
+}
+
+export interface TCommonField extends TBaseField {
+	type: 'string' | 'boolean' | 'date' | 'url' | 'file' | 'array'
 }
 
 export interface TNumberField extends TBaseField {
@@ -39,7 +42,7 @@ export type TOptionItem = {
 	title: string
 }
 
-export type TField = TBaseField | TNumberField | TSelectField | TMultiSelectField | TConditionalField
+export type TField = TCommonField | TNumberField | TSelectField | TMultiSelectField | TConditionalField
 
 export type TData = {
 	entity: string
