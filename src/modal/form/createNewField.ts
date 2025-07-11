@@ -2,6 +2,7 @@ import { TField, TTypeField } from "src/types/field";
 import { slugify } from "src/utils/slugify";
 
 export function createNewField(type: TTypeField, label: string): TField {
+	console.log(`criando arquivo com tipo ${type}`)
 	const name = slugify(label)
 	switch (type) {
 		case 'string':

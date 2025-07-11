@@ -1,7 +1,6 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
-import { TField, TTypeField } from "src/types/field";
-import { giveTypeField } from "./type-field";
+import { TField, TMultiSelectField, TSelectField, TTypeField } from "src/types/field";
 import { createNewField } from "./createNewField";
 
 export class ModalForm extends Modal {
@@ -38,24 +37,25 @@ export class ModalForm extends Modal {
 					.setButtonText("Add Field")
 					.setCta()
 					.onClick(() => {
-						const container = wrapper.createDiv({ cls: "field-group-wrapper" });
-						const deleteBtn = container.createEl("div", { cls: "delete-icon" });
+						const typeContainer = wrapper.createDiv({ cls: "field-group-wrapper" });
+						const deleteBtn = typeContainer.createEl("div", { cls: "delete-icon" });
 						setIcon(deleteBtn, "trash");
 
-						let newField = createNewField('string', '');
+						// const newField = createNewField('string', '');
+						const newField: TField = { name: '', label: '', type: 'string' };
 						this.fields.push(newField)
 
 						deleteBtn.onclick = () => {
 							this.fields.remove(newField)
-							container.remove()
+							typeContainer.remove()
 						};
-						new Setting(container)
+						new Setting(typeContainer)
 							.setName("Field Name")
 							.addText(text => text.onChange(val => {
 								newField.label = val
 								newField.name = slugify(val)
 							}))
-						new Setting(container).setName("Field Type")
+						new Setting(typeContainer).setName("Field Type")
 							.addDropdown(drop =>
 								drop
 									.addOption("string", "String")
@@ -68,11 +68,39 @@ export class ModalForm extends Modal {
 									.addOption("file", "File")
 									.addOption("array", "Array")
 									.addOption("conditional", "Conditional")
-									.setValue('string')
-									.onChange((val: TTypeField) => {
-										newField = createNewField(val, newField.label);
-										giveTypeField(val, container, newField)
-									})
+									.onChange((newType: TTypeField) => {
+										// giveTypeField(newType, container, newField)
+										// const newField = createNewField(newType, newField.label);
+
+										newField.type = newType
+										console.log(this.fields)
+
+										switch (newField.type) {
+											case 'select':
+											case 'multiselect':
+												newField.options = []
+												this.addOption(typeContainer, newField)
+												break
+											case 'number':
+												newField.precision = 0
+												new Setting(typeContainer)
+													.setName("Decimal dot")
+													.addText(text => {
+														text.inputEl.type = "number";
+														text.onChange(val => {
+															try {
+																newField.precision = parseInt(val);
+															} catch {
+																new Notice('Error Ocurred')
+															}
+														})
+													});
+												break
+											default:
+												break
+										}
+									}
+									)
 							);
 
 
@@ -92,7 +120,7 @@ export class ModalForm extends Modal {
 								...this.result,
 								fields: this.fields
 							});
-							this.close();
+							// this.close();
 							return true
 						} else {
 							new Notice("Fill all the fields");
@@ -114,6 +142,32 @@ export class ModalForm extends Modal {
 	formIsFilled(): boolean {
 		console.log(this.result)
 		return this.result && this.result.label;
+	}
+
+	addOption(container: HTMLDivElement, field: TSelectField | TMultiSelectField) {
+		const optionsContainer = container.createDiv();
+		new Setting(container).addButton((btn) => {
+			let countOptions = 0
+
+			btn.setIcon('plus').onClick(() => {
+				const optionContainer = optionsContainer.createDiv();
+				countOptions += 1
+
+				const newOption = {
+					id: countOptions.toString(),
+					title: ''
+				}
+				field.options.push(newOption)
+				new Setting(optionContainer).setName("Option name")
+					.addText(text => text.onChange(val => (newOption.title = val)))
+					.addButton((btn) => {
+						btn.setIcon('trash').onClick(() => {
+							field.options.map(item => item.id === newOption.id && field.options.remove(item))
+							optionContainer.remove()
+						})
+					});
+			})
+		})
 	}
 }
 

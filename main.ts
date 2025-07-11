@@ -1,7 +1,7 @@
 import { Plugin } from "obsidian";
-import { createNewFolderInCurrentDir } from "src/utils/createFolder";
-import { createMarkdownWithJson } from "src/utils/createMDFile";
-import { getFolderName } from "src/utils/folderName";
+// import { createNewFolderInCurrentDir } from "src/utils/createFolder";
+// import { createMarkdownWithJson } from "src/utils/createMDFile";
+// import { getFolderName } from "src/utils/folderName";
 import { ModalForm } from "src/modal/form/modal";
 
 
@@ -14,11 +14,11 @@ export default class DynamicInterfacePlugin extends Plugin {
 		this.addRibbonIcon("table", "Create new schema", async () => {
 			new ModalForm(this.app, async (isValid, result) => {
 				console.log("Form data:", result);
-				if (isValid) {
-					const folderName = getFolderName(this.app, 'NewFolder');
-					await createNewFolderInCurrentDir(this.app, folderName)
-					await createMarkdownWithJson(this.app, folderName, result)
-				}
+				// if (isValid) {
+				// 	const folderName = getFolderName(this.app, 'NewFolder');
+				// 	await createNewFolderInCurrentDir(this.app, folderName)
+				// 	await createMarkdownWithJson(this.app, folderName, result)
+				// }
 			}).open();
 		})
 	}
