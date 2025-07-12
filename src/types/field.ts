@@ -43,7 +43,7 @@ export type TOptionItem = {
 	title: string
 }
 
-export type TField = TBaseField | TCommonField | TNumberField | TSelectField | TMultiSelectField | TConditionalField
+export type TField = TCommonField | TNumberField | TSelectField | TMultiSelectField | TConditionalField
 
 export type TData = {
 	entity: string

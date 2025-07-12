@@ -21,6 +21,17 @@ export default class DynamicInterfacePlugin extends Plugin {
 				// }
 			}).open();
 		})
+
+		this.addRibbonIcon("table", "Create new schema", async () => {
+			new ModalForm(this.app, async (isValid, result) => {
+				console.log("Form data:", result);
+				// if (isValid) {
+				// 	const folderName = getFolderName(this.app, 'NewFolder');
+				// 	await createNewFolderInCurrentDir(this.app, folderName)
+				// 	await createMarkdownWithJson(this.app, folderName, result)
+				// }
+			}).open();
+		})
 	}
 	// 	const viewType = this.settings.viewType;
 	// 	if (!folder) {

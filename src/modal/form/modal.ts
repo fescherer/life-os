@@ -1,7 +1,7 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
 import { TField, TMultiSelectField, TSelectField, TTypeField } from "src/types/field";
-import { createNewField } from "./createNewField";
+import { createBlankField } from "./createBlankField";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: Record<string, unknown>) => void;
@@ -41,8 +41,7 @@ export class ModalForm extends Modal {
 						const deleteBtn = typeContainer.createEl("div", { cls: "delete-icon" });
 						setIcon(deleteBtn, "trash");
 
-						// const newField = createNewField('string', '');
-						const newField: TField = { name: '', label: '', type: 'string' };
+						const newField = createBlankField('string')
 						this.fields.push(newField)
 
 						deleteBtn.onclick = () => {
@@ -95,6 +94,8 @@ export class ModalForm extends Modal {
 															}
 														})
 													});
+												break
+											case 'conditional':
 												break
 											default:
 												break
