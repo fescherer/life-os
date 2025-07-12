@@ -1,11 +1,11 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
-import { TField, TMultiSelectField, TSelectField, TTypeField } from "src/types/field";
+import { TEntity, TField, TMultiSelectField, TSelectField, TTypeField } from "src/types/field";
 import { createBlankField } from "./createBlankField";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: Record<string, unknown>) => void;
-	result: Record<string, any>
+	result: TEntity
 	isValid: boolean
 	fields: Array<TField> = []
 
@@ -13,6 +13,7 @@ export class ModalForm extends Modal {
 		super(app);
 		this.onSubmit = onSubmit;
 		this.result = {
+			entity: '',
 			label: '',
 			fields: []
 		}
@@ -117,8 +118,8 @@ export class ModalForm extends Modal {
 					.onClick(() => {
 						if (this.formIsFilled()) {
 							this.onSubmit(true, {
-								entity: slugify(this.result.label || ''),
 								...this.result,
+								entity: slugify(this.result.label || ''),
 								fields: this.fields
 							});
 							// this.close();
@@ -142,7 +143,7 @@ export class ModalForm extends Modal {
 
 	formIsFilled(): boolean {
 		console.log(this.result)
-		return this.result && this.result.label;
+		return this.result && !!this.result.label;
 	}
 
 	addOption(container: HTMLDivElement, field: TSelectField | TMultiSelectField) {

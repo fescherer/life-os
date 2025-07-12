@@ -1,8 +1,15 @@
 import { Plugin } from "obsidian";
+import { ModalDataForm } from "src/modal/data/data-modal";
+import { ModalDataNotFoundForm } from "src/modal/data/data-not-found";
 // import { createNewFolderInCurrentDir } from "src/utils/createFolder";
 // import { createMarkdownWithJson } from "src/utils/createMDFile";
 // import { getFolderName } from "src/utils/folderName";
 import { ModalForm } from "src/modal/form/modal";
+import { createNewFolderInCurrentDir } from "src/utils/createFolder";
+import { createMarkdownWithJson } from "src/utils/createMDFile";
+import { fileExists } from "src/utils/fileExists";
+import { getFolderName } from "src/utils/folderName";
+import { updateJsonInMarkdownFile } from "src/utils/updateMDFile";
 
 
 export default class DynamicInterfacePlugin extends Plugin {
@@ -14,23 +21,47 @@ export default class DynamicInterfacePlugin extends Plugin {
 		this.addRibbonIcon("table", "Create new schema", async () => {
 			new ModalForm(this.app, async (isValid, result) => {
 				console.log("Form data:", result);
-				// if (isValid) {
-				// 	const folderName = getFolderName(this.app, 'NewFolder');
-				// 	await createNewFolderInCurrentDir(this.app, folderName)
-				// 	await createMarkdownWithJson(this.app, folderName, result)
-				// }
+				if (isValid) {
+
+					// Create Folder
+					const folderName = getFolderName(this.app, 'NewFolder');
+					await createNewFolderInCurrentDir(this.app, folderName)
+
+					// Create Schema File
+					const jsonString = JSON.stringify(result, null, 2);
+					await createMarkdownWithJson(this.app, folderName, 'entity.md', jsonString)
+
+					// Create Data File
+					const jsonStringData = JSON.stringify({
+						entity: result.entity,
+						label: result.label,
+						data: []
+					}, null, 2)
+					await createMarkdownWithJson(this.app, folderName, 'data.md', jsonStringData)
+				}
 			}).open();
 		})
 
-		this.addRibbonIcon("table", "Create new schema", async () => {
-			new ModalForm(this.app, async (isValid, result) => {
-				console.log("Form data:", result);
-				// if (isValid) {
-				// 	const folderName = getFolderName(this.app, 'NewFolder');
-				// 	await createNewFolderInCurrentDir(this.app, folderName)
-				// 	await createMarkdownWithJson(this.app, folderName, result)
-				// }
-			}).open();
+		this.addRibbonIcon("newspaper", "Create new data block", async () => {
+			const activeFile = this.app.workspace.getActiveFile();
+			const currentFolder = activeFile?.parent?.path;
+			const file = fileExists(this.app, `${currentFolder}/entity.md`)
+			if (file) {
+				new ModalDataForm(this.app, async (isValid, result) => {
+					console.log("Form data:", result);
+					if (isValid) {
+						console.log('Data sent: ', result)
+
+						// Create string data
+						const jsonString = JSON.stringify(result, null, 2);
+						if (currentFolder)
+							await updateJsonInMarkdownFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+
+					}
+				}).open();
+			} else {
+				new ModalDataNotFoundForm(this.app).open()
+			}
 		})
 	}
 	// 	const viewType = this.settings.viewType;
