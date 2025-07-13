@@ -1,7 +1,7 @@
 export type TEntity = {
 	entity: string
 	label: string
-	fields: Array<TBaseField | TNumberField | TMultiSelectField | TMultiSelectField | TConditionalField>
+	fields: Array<TCommonField | TNumberField | TMultiSelectField | TSelectField | TMultiSelectField | TConditionalField>
 }
 
 export type TTypeField = 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'url' | 'file' | 'array' | 'conditional'

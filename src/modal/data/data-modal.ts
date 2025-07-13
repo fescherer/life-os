@@ -1,5 +1,5 @@
 import { Modal, App, Setting } from "obsidian";
-import { TData, TEntity } from "src/types/field";
+import { TData, TEntity, TOptionItem } from "src/types/field";
 import { parseJsonFromMarkdownFile } from "src/utils/readJSONFile";
 
 export class ModalDataForm extends Modal {
@@ -57,7 +57,6 @@ export class ModalDataForm extends Modal {
 
 		contentEl.createEl("h2", { text: `Create new data for ${entitySchema.label}` });
 
-
 		const dataField: Record<string, string | boolean | number | Array<string>> = {}
 		this.result.data.push(dataField)
 		entitySchema.fields.map(field => {
@@ -73,9 +72,46 @@ export class ModalDataForm extends Modal {
 							text.onChange(val => (dataField[field.name] = val))
 						});
 					break;
+				case 'boolean':
+					new Setting(contentEl).addToggle(c => c.onChange(val => (dataField[field.name] = val)))
+					break;
+				case 'date':
+					break;
+				case 'select':
+					new Setting(contentEl).addDropdown(dropdown => {
+						const options = this.getOptionsFormat(field.options)
+
+						dropdown
+							.addOptions((options))
+							.onChange(val => (dataField[field.name] = val))
+					})
+					break;
+				case 'multiselect':
+					new Setting(contentEl).addDropdown(dropdown => {
+						const optionsContainer = contentEl.createEl("div");
+
+						let options = this.getOptionsFormat(field.options)
+						dropdown
+							.addOptions(options)
+							.onChange(val => {
+								// eslint-disable-next-line @typescript-eslint/no-unused-vars
+								const { [val]: _, ...newOptions } = options
+								options = newOptions
+								optionsContainer
+								// dataField[field.name] = val
+							})
+					})
+					break;
+				case 'url':
+					break;
+				case 'file':
+					break;
+				case 'array':
+					break;
+				case 'conditional':
+					break;
 			}
 		})
-
 
 		new Setting(contentEl).addButton(btn => {
 			btn.setButtonText('verify').onClick(() => {
@@ -98,6 +134,13 @@ export class ModalDataForm extends Modal {
 		// 	type: "string",
 		// });
 		// contentEl.empty();
+	}
+
+	getOptionsFormat(options: TOptionItem[]) {
+		return options.reduce<Record<string, string>>((acc, item) => {
+			acc[item.title] = item.title
+			return acc
+		}, {})
 	}
 }
 
