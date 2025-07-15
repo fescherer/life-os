@@ -1,5 +1,5 @@
-import { Modal, App, Setting } from "obsidian";
-import { TData, TEntity, TOptionItem } from "src/types/field";
+import { Modal, App, Setting, Notice } from "obsidian";
+import { TCommonField, TData, TEntity, TOptionItem } from "src/types/field";
 import { parseJsonFromMarkdownFile } from "src/utils/readJSONFile";
 
 export class ModalDataForm extends Modal {
@@ -103,10 +103,51 @@ export class ModalDataForm extends Modal {
 					})
 					break;
 				case 'url':
+					this.getURL(dataField, contentEl, field)
 					break;
 				case 'file':
+
+					new Setting(contentEl)
+						.setName(field.label)
+						.addButton((btn) => {
+							const imagePathText = contentEl.createDiv();
+							btn.setButtonText("Choose File").onClick(() => {
+								const fileInput = document.createElement("input");
+								fileInput.type = "file";
+								fileInput.accept = "*/*"; // You can limit to specific types, e.g., ".pdf" or "image/*"
+
+								fileInput.onchange = async () => {
+									if (!fileInput.files || fileInput.files.length === 0) return;
+
+									const file = fileInput.files[0];
+
+									const arrayBuffer = await file.arrayBuffer();
+									const fileName = file.name;
+									const targetPath = `${currentFolder}/files/${fileName}`;
+
+									try {
+										const folderPath = targetPath.split("/").slice(0, -1).join("/");
+										if (!this.app.vault.getAbstractFileByPath(folderPath)) {
+											await this.app.vault.createFolder(folderPath);
+										}
+
+										await this.app.vault.createBinary(targetPath, arrayBuffer);
+
+										new Notice(`Imported file: ${fileName}`);
+										imagePathText.setText(fileName)
+										dataField[field.name] = fileName
+									} catch (err) {
+										console.error("Error importing file:", err);
+										new Notice("Failed to import file.");
+									}
+								};
+								fileInput.click();
+							});
+						})
 					break;
 				case 'array':
+					new Setting(contentEl).setName(field.label)
+						.addText(text => text.onChange(val => (dataField[field.name] = val)));
 					break;
 				case 'conditional':
 					break;
@@ -116,6 +157,7 @@ export class ModalDataForm extends Modal {
 		new Setting(contentEl).addButton(btn => {
 			btn.setButtonText('verify').onClick(() => {
 				// if (true) {
+
 				this.onSubmit(true, this.result);
 				// this.close();
 				return true
@@ -141,6 +183,38 @@ export class ModalDataForm extends Modal {
 			acc[item.title] = item.title
 			return acc
 		}, {})
+	}
+
+	getURL(dataField: Record<string, string | number | boolean | string[]>, contentEl: HTMLElement, field: TCommonField) {
+		let urlPrefix = 'https://'
+		let url = ''
+
+		const updateCombined = async () => {
+			const part1 = urlPrefix || "";
+			const part2 = url || "";
+			dataField[field.name] = `${part1}${part2}`;
+		};
+
+		new Setting(contentEl)
+			.setName(field.label)
+			.addText(text1 => {
+				text1
+					.setPlaceholder("Prefix")
+					.setValue(urlPrefix || "")
+					.onChange(value => {
+						urlPrefix = value;
+						updateCombined();
+					});
+			})
+			.addText(text2 => {
+				text2
+					.setPlaceholder("URL")
+					.setValue(url || "")
+					.onChange(value => {
+						url = value;
+						updateCombined();
+					});
+			});
 	}
 }
 
