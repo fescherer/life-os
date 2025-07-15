@@ -1,5 +1,7 @@
 import { TFile, Vault, normalizePath } from "obsidian";
 
+// this is overwriting, the correct is read the whole file and append it
+
 export async function updateJsonInMarkdownFile(
 	vault: Vault,
 	filePath: string,

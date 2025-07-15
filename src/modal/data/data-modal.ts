@@ -157,9 +157,8 @@ export class ModalDataForm extends Modal {
 		new Setting(contentEl).addButton(btn => {
 			btn.setButtonText('verify').onClick(() => {
 				// if (true) {
-
 				this.onSubmit(true, this.result);
-				// this.close();
+				this.close();
 				return true
 				// } else {
 				// 	new Notice("Fill all the fields");
