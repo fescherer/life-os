@@ -97,6 +97,14 @@ export class ModalForm extends Modal {
 													});
 												break
 											case 'conditional':
+												// Get field basedOn in a dropdown
+												// If field is select is very easy, just add the dropdown with the possibilities
+												// If field is multiselect, string, url,  add filters like contains, not contain, etc
+												// If number add filter for greater than, less than, equal
+												// If boolean add two dropdown possibilities- true or false
+												// If date add possibilities like less than, greater than (Use date comparision methods)
+												// If file add string like methods for name of the file (Extension like .jpg could be included)
+												// Make a switch in the cases and render all the fields
 												break
 											default:
 												break
