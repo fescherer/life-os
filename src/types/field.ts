@@ -48,5 +48,10 @@ export type TField = TCommonField | TNumberField | TSelectField | TMultiSelectFi
 export type TData = {
 	entity: string
 	label: string
-	data: Array<Record<string, string | boolean | number | Array<string>>>
+	data: Array<{
+		id: string;
+		createdAt: string;
+		updatedAt: string;
+		[key: string]: unknown;
+	}>
 }

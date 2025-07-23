@@ -1,16 +1,14 @@
-import { Plugin, WorkspaceLeaf } from "obsidian";
+import { Plugin } from "obsidian";
 import { ModalDataForm } from "src/modal/data/data-modal";
 import { ModalDataNotFoundForm } from "src/modal/data/data-not-found";
 // import { createNewFolderInCurrentDir } from "src/utils/createFolder";
 // import { createMarkdownWithJson } from "src/utils/createMDFile";
 // import { getFolderName } from "src/utils/folderName";
 import { ModalForm } from "src/modal/form/modal";
-import { createNewFolderInCurrentDir } from "src/utils/createFolder";
-import { createMarkdownWithJson } from "src/utils/createMDFile";
-import { fileExists } from "src/utils/fileExists";
-import { getFolderName } from "src/utils/folderName";
-import { updateJsonInMarkdownFile } from "src/utils/updateMDFile";
-import { ExampleView, VIEW_TYPE_EXAMPLE } from "src/views/card";
+import { TEntity } from "src/types/field";
+import { createEntityFolder, getEntityData } from "src/utils/entity-util";
+import { fileExists, updateMDFile } from "src/utils/markdown-manager";
+import { CARD_VIEW_TYPE, CardView } from "src/views/card-view";
 
 
 export default class DynamicInterfacePlugin extends Plugin {
@@ -20,34 +18,23 @@ export default class DynamicInterfacePlugin extends Plugin {
 		console.log("Loading Fennec Tales Studio's Plugin");
 
 		this.registerView(
-			VIEW_TYPE_EXAMPLE,
-			(leaf) => new ExampleView(leaf)
+			CARD_VIEW_TYPE,
+			(leaf) => new CardView(leaf)
 		);
 
-		this.addRibbonIcon('dice', 'Activate view', () => {
-			this.activateView();
+		this.addRibbonIcon('dice', 'Activate view', async () => {
+			const leaf = this.app.workspace.getLeaf(true);
+			await leaf.setViewState({
+				type: CARD_VIEW_TYPE,
+				active: true
+			});
 		});
 
 		this.addRibbonIcon("table", "Create new schema", async () => {
 			new ModalForm(this.app, async (isValid, result) => {
 				console.log("Form data:", result);
 				if (isValid) {
-
-					// Create Folder
-					const folderName = getFolderName(this.app, 'NewFolder');
-					await createNewFolderInCurrentDir(this.app, folderName)
-
-					// Create Schema File
-					const jsonString = JSON.stringify(result, null, 2);
-					await createMarkdownWithJson(this.app, folderName, 'entity.md', jsonString)
-
-					// Create Data File
-					const jsonStringData = JSON.stringify({
-						entity: result.entity,
-						label: result.label,
-						data: []
-					}, null, 2)
-					await createMarkdownWithJson(this.app, folderName, 'data.md', jsonStringData)
+					createEntityFolder(result as TEntity)
 				}
 			}).open();
 		})
@@ -63,38 +50,16 @@ export default class DynamicInterfacePlugin extends Plugin {
 						console.log('Data sent: ', result)
 
 						// Create string data
-						const jsonString = JSON.stringify(result, null, 2);
+						const entityData = await getEntityData(this.app)
+						const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data, result] }, null, 2);
 						if (currentFolder)
-							await updateJsonInMarkdownFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-
+							await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
 					}
 				}).open();
 			} else {
 				new ModalDataNotFoundForm(this.app).open()
 			}
 		})
-	}
-
-	async activateView() {
-		const { workspace } = this.app;
-
-		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE);
-
-		if (leaves.length > 0) {
-			// A leaf with our view already exists, use that
-			leaf = leaves[0];
-		} else {
-			// Our view could not be found in the workspace, create a new leaf
-			// in the right sidebar for it
-			leaf = workspace.getRightLeaf(false);
-			if (leaf)
-				await leaf.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
-		}
-
-		// "Reveal" the leaf in case it is in a collapsed sidebar
-		if (leaf)
-			workspace.revealLeaf(leaf);
 	}
 
 	// 	const viewType = this.settings.viewType;

@@ -1,21 +1,20 @@
 import { Modal, App, Setting, Notice } from "obsidian";
-import { TCommonField, TData, TEntity, TOptionItem } from "src/types/field";
-import { parseJsonFromMarkdownFile } from "src/utils/readJSONFile";
+import { TCommonField, TOptionItem } from "src/types/field";
+import { getEntitySchema } from "src/utils/entity-util";
+
+
+// TODO Add default itens to data, like unique ID, created at like Notion
 
 export class ModalDataForm extends Modal {
-	onSubmit: (isValid: boolean, result: Record<string, unknown>) => void;
-	result: TData
+	onSubmit: (isValid: boolean, result: Record<string, string | boolean | number | Array<string>>) => void;
+	result: Record<string, string | boolean | number | Array<string>> | null
 	isValid: boolean
 	data: Array<Record<string, string | boolean | number | Array<string>>> = []
 
-	constructor(app: App, onSubmit: (isValid: boolean, result: Record<string, unknown>) => void) {
+	constructor(app: App, onSubmit: (isValid: boolean, result: Record<string, string | boolean | number | Array<string>>) => void) {
 		super(app);
 		this.onSubmit = onSubmit;
-		this.result = {
-			entity: '',
-			label: '',
-			data: []
-		}
+		this.result = null
 		this.isValid = false
 	}
 
@@ -47,18 +46,12 @@ export class ModalDataForm extends Modal {
 	async onOpen() {
 		const { contentEl } = this;
 
-		const activeFile = this.app.workspace.getActiveFile();
-		const currentFolder = activeFile?.parent?.path;
-
-		const entitySchema = await parseJsonFromMarkdownFile(this.app.vault, `${currentFolder}/entity.md`) as TEntity
-
-		this.result.entity = entitySchema.entity
-		this.result.label = entitySchema.label
+		const entitySchema = await getEntitySchema(this.app)
 
 		contentEl.createEl("h2", { text: `Create new data for ${entitySchema.label}` });
 
 		const dataField: Record<string, string | boolean | number | Array<string>> = {}
-		this.result.data.push(dataField)
+		this.result = dataField
 		entitySchema.fields.map(field => {
 			switch (field.type) {
 				case 'string':
@@ -123,6 +116,8 @@ export class ModalDataForm extends Modal {
 
 									const arrayBuffer = await file.arrayBuffer();
 									const fileName = file.name;
+									const activeFile = this.app.workspace.getActiveFile();
+									const currentFolder = activeFile?.parent?.path;
 									const targetPath = `${currentFolder}/files/${fileName}`;
 
 									try {
@@ -157,7 +152,8 @@ export class ModalDataForm extends Modal {
 		new Setting(contentEl).addButton(btn => {
 			btn.setButtonText('verify').onClick(() => {
 				// if (true) {
-				this.onSubmit(true, this.result);
+				if (this.result != null)
+					this.onSubmit(true, this.result);
 				this.close();
 				return true
 				// } else {
