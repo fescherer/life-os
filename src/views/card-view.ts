@@ -1,4 +1,5 @@
-import { ItemView, setIcon, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, WorkspaceLeaf } from "obsidian";
+import { ConfirmDialog } from "src/utils/confirmDialog";
 import { getEntityData, getEntitySchema, } from "src/utils/entity-util";
 import { updateMDFile } from "src/utils/markdown-manager";
 
@@ -40,17 +41,23 @@ export class CardView extends ItemView {
 			setIcon(btnRemove, "trash");
 			btnRemove.onclick = async () => {
 				console.log('Remove card', a)
-				const activeFile = this.app.workspace.getActiveFile();
-				const currentFolder = activeFile?.parent?.path;
-				const entityData = await getEntityData(this.app)
+				new ConfirmDialog(this.app,
+					'Do you want to remove this item?',
+					async () => {
+						const activeFile = this.app.workspace.getActiveFile();
+						const currentFolder = activeFile?.parent?.path;
+						const entityData = await getEntityData(this.app)
 
-				// TODO Here is deleting by name, but this deletes duplicate data, which is not intended. We need to create unique ids
-				const newData = entityData.data.filter((item) => item.name !== data.name)
-				const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
+						// TODO Here is deleting by name, but this deletes duplicate data, which is not intended. We need to create unique ids
+						const newData = entityData.data.filter((item) => item.name !== data.name)
+						const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
 
-				if (currentFolder)
-					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+						if (currentFolder)
+							await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+						new Notice(`You hve deleted an item from ${entityData.label}`)
+					}, () => {
 
+					}).open()
 				this.onOpen()
 			}
 			card.createEl("h3", { text: `Field Index: ${a.toString()}` });
