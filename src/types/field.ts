@@ -4,7 +4,7 @@ export type TEntity = {
 	fields: Array<TField>
 }
 
-export type TTypeField = 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'url' | 'file' | 'array' | 'conditional'
+export type TTypeField = 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'url' | 'file' | 'array' | 'conditional' | 'markdown'
 
 export type TBaseField = {
 	name: string
@@ -31,6 +31,14 @@ export interface TMultiSelectField extends TBaseField {
 	options: Array<TOptionItem>
 }
 
+export type TPrefixField = '' | 'field' | 'text'
+
+export interface TMarkdownField extends TBaseField {
+	type: 'markdown'
+	prefixType: TPrefixField
+	prefix: string
+}
+
 export interface TConditionalField extends TBaseField {
 	type: 'conditional'
 	decimal: number
@@ -43,15 +51,22 @@ export type TOptionItem = {
 	title: string
 }
 
-export type TField = TCommonField | TNumberField | TSelectField | TMultiSelectField | TConditionalField
+export type TField = TCommonField | TNumberField | TSelectField | TMultiSelectField | TConditionalField | TMarkdownField
 
 export type TData = {
 	entity: string
 	label: string
-	data: Array<{
-		id: string;
-		createdAt: string;
-		updatedAt: string;
-		[key: string]: unknown;
-	}>
+	data: Array<TDataItem>
+}
+
+export type TDataItem = {
+	id: string;
+	createdAt: string;
+	updatedAt: string;
+	[key: string]: unknown;
+}
+
+
+export type TFieldFormData = {
+
 }

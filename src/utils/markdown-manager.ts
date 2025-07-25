@@ -8,7 +8,6 @@ export function fileExists(app: App, path: string): boolean {
 
 
 export async function readMDFile(vault: Vault, filePath: string): Promise<unknown | null> {
-    // Normalize and get the file
     const file = vault.getAbstractFileByPath(normalizePath(filePath));
 
     if (!(file instanceof TFile)) {
@@ -18,7 +17,6 @@ export async function readMDFile(vault: Vault, filePath: string): Promise<unknow
 
     const content = await vault.read(file);
 
-    // Extract the first JSON code block
     const match = content.match(/````?json\s*([\s\S]*?)\s*````?/i);
     if (!match) {
         console.warn(`No JSON block found in ${filePath}`);
@@ -44,7 +42,6 @@ export async function updateMDFile(
     filePath: string,
     jsonString: string
 ): Promise<boolean> {
-    // this is overwriting, the correct is read the whole file and append it
     const file = vault.getAbstractFileByPath(normalizePath(filePath));
 
     if (!(file instanceof TFile)) {
@@ -59,7 +56,6 @@ export async function updateMDFile(
         `\`\`\`json\n${jsonString}\n\`\`\``
     );
 
-    // If no match was found, we might want to insert it instead
     if (updatedContent === content) {
         console.warn("No JSON block found to replace. Appending new JSON block.");
         await vault.modify(file, `${content.trim()}\n\n\`\`\`json\n${jsonString}\n\`\`\``);

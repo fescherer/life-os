@@ -1,9 +1,13 @@
 import { ItemView, Notice, setIcon, WorkspaceLeaf } from "obsidian";
+import { ModalDataForm } from "src/modal/data/data-modal";
+import { TDataItem } from "src/types/field";
 import { ConfirmDialog } from "src/utils/confirmDialog";
 import { getEntityData, getEntitySchema, } from "src/utils/entity-util";
-import { updateMDFile } from "src/utils/markdown-manager";
+import { fileExists, updateMDFile } from "src/utils/markdown-manager";
 
 export const CARD_VIEW_TYPE = "card-view";
+
+// TODO make page dynamically updates
 
 export class CardView extends ItemView {
 	constructor(leaf: WorkspaceLeaf) {
@@ -26,41 +30,45 @@ export class CardView extends ItemView {
 
 		contentEl.empty();
 		contentEl.createEl("h2", { text: `Hello! You are seeing schema of ${entityData.label}` });
+
+		const btnAddNewData = contentEl.createEl("button", { cls: "icon-button" });
+		const iconEl = btnAddNewData.createSpan();
+		setIcon(iconEl, "plus");
+		iconEl.style.marginRight = "0.5em";
+		btnAddNewData.createSpan({ text: "Add data" });
+		btnAddNewData.onclick = () => this.addOrEditCardItem()
+
 		const cardContainer = contentEl.createDiv({ cls: 'card-container ' })
 
 		entityData.data.map((data, a, b) => {
 			console.log("data: ", data, a, b)
 			const card = cardContainer.createDiv({ cls: "card" });
 			const btnContainer = card.createDiv({ cls: "btn-container" })
+
 			const btnEdit = btnContainer.createEl("button", { cls: "icon-button" });
 			setIcon(btnEdit, "pencil");
-			btnEdit.onclick = () => {
-				console.log('Edit card', a)
-			}
+			btnEdit.onclick = () => this.addOrEditCardItem(data)
+
 			const btnRemove = btnContainer.createEl("button", { cls: "icon-button" });
 			setIcon(btnRemove, "trash");
-			btnRemove.onclick = async () => {
-				console.log('Remove card', a)
-				new ConfirmDialog(this.app,
-					'Do you want to remove this item?',
-					async () => {
-						const activeFile = this.app.workspace.getActiveFile();
-						const currentFolder = activeFile?.parent?.path;
-						const entityData = await getEntityData(this.app)
+			btnRemove.onclick = () => this.removeCardItem(data)
 
-						// TODO Here is deleting by name, but this deletes duplicate data, which is not intended. We need to create unique ids
-						const newData = entityData.data.filter((item) => item.name !== data.name)
-						const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
 
-						if (currentFolder)
-							await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-						new Notice(`You hve deleted an item from ${entityData.label}`)
-					}, () => {
-
-					}).open()
-				this.onOpen()
-			}
 			card.createEl("h3", { text: `Field Index: ${a.toString()}` });
+
+			const imageField = entitySchema.fields.find((field) => field.type == 'file')
+			if (imageField) {
+				// If there is a file inside the schema, add a visualization of it 
+				// TODO Make img-cover style
+				card.createEl('img', {
+					cls: 'img-cover',
+					attr: {
+						src: data[imageField.name] as string,
+						width: "200",
+						loading: 'lazy'
+					}
+				})
+			}
 
 			Object.keys(data).map(fieldName => {
 				const fieldType = entitySchema.fields.find((field) => field.name === fieldName)
@@ -102,16 +110,35 @@ export class CardView extends ItemView {
 						break;
 				}
 			})
-			// const type = entitySchema.fields.find(f => {
-			//     if(f == [Object.keys(data)])
-			// });
-			// const value = data[key];
-
-
 		})
 	}
 
 	async onClose() {
 		// Clean up if needed
+	}
+
+	removeCardItem(data: TDataItem) {
+		console.log('Remove card')
+		new ConfirmDialog(this.app,
+			'Do you want to remove this item?',
+			async () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				const currentFolder = activeFile?.parent?.path;
+				const entityData = await getEntityData(this.app)
+
+				const newData = entityData.data.filter((item) => item.id !== data.id)
+				const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
+
+				if (currentFolder)
+					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+				new Notice(`You hve deleted an item from ${entityData.label}`)
+			}, () => {
+
+			}).open()
+		this.onOpen()
+	}
+
+	addOrEditCardItem(data?: TDataItem) {
+		new ModalDataForm(this.app, data).open();
 	}
 }
