@@ -104,22 +104,28 @@ export class ModalForm extends Modal {
 												// TODO Add a way to get all the current fields
 												const markdownSetting = new Setting(typeContainer)
 													.setName("Has a prefix?")
-													.addDropdown(drop =>
-														drop
-															.addOption("", "No")
-															.addOption("field", "Field")
-															.addOption("text", "Text")
-															.onChange((prefixType: TPrefixField) => {
-																newField.prefixType = prefixType
-																const allFields = {
-																	fieldA: '',
-																	fieldB: ''
-																}
-																if (prefixType == 'text') markdownSetting.addText(text => text.onChange((val) => newField.prefix = val))
-																else if (prefixType == 'field') markdownSetting.addDropdown(fieldDrop => fieldDrop.addOptions(allFields).onChange(val => newField.prefix = val))
-																else newField.prefix = ''
-															})
-													)
+
+												const prefixInputContainer = typeContainer.createDiv();
+
+												markdownSetting.addDropdown(drop =>
+													drop
+														.addOption("", "No")
+														.addOption("field", "Field")
+														.addOption("text", "Text")
+														.onChange((prefixType: TPrefixField) => {
+															prefixInputContainer.empty()
+															newField.prefixType = prefixType
+															const allFields = {
+																fieldA: '',
+																fieldB: ''
+															}
+
+
+															if (prefixType == 'text') new Setting(prefixInputContainer).addText(text => text.onChange((val) => newField.prefix = val))
+															else if (prefixType == 'field') new Setting(prefixInputContainer).addDropdown(fieldDrop => fieldDrop.addOptions(allFields).onChange(val => newField.prefix = val))
+															else newField.prefix = ''
+														})
+												)
 
 
 												break;

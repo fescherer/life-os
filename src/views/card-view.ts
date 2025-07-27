@@ -1,9 +1,10 @@
-import { ItemView, Notice, setIcon, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import { ModalDataForm } from "src/modal/data/data-modal";
 import { TDataItem } from "src/types/field";
 import { ConfirmDialog } from "src/utils/confirmDialog";
 import { getEntityData, getEntitySchema, } from "src/utils/entity-util";
 import { fileExists, updateMDFile } from "src/utils/markdown-manager";
+import { getMarkdownFieldFile } from "src/utils/markdownField";
 
 export const CARD_VIEW_TYPE = "card-view";
 
@@ -70,7 +71,7 @@ export class CardView extends ItemView {
 				})
 			}
 
-			Object.keys(data).map(fieldName => {
+			Object.keys(data).map(async (fieldName) => {
 				const fieldType = entitySchema.fields.find((field) => field.name === fieldName)
 				if (!fieldType) return
 
@@ -104,6 +105,20 @@ export class CardView extends ItemView {
 						break;
 					case 'conditional':
 						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
+						break;
+					case 'markdown':
+						const link = contentEl.createEl('button')
+						setIcon(link, 'external-link')
+						link.onclick = async () => {
+							const field = entitySchema.fields.find(item => item.type === 'markdown')
+							if (!field) return
+							const file = getMarkdownFieldFile(this.app, field, entitySchema, data.id)
+							if (file && file instanceof TFile) {
+								await this.app.workspace.getLeaf(true).openFile(file);
+							} else {
+								new Notice(`File not found.`);
+							}
+						}
 						break;
 					default:
 						console.log('No item')

@@ -3,6 +3,7 @@ import { TCommonField, TData, TDataItem, TEntity, TMarkdownField, TOptionItem } 
 import { ConfirmDialog } from "src/utils/confirmDialog";
 import { getEntityData, getEntitySchema } from "src/utils/entity-util";
 import { fileExists, updateMDFile } from "src/utils/markdown-manager";
+import { getMarkdownFieldFile, getMarkdownFieldName } from "src/utils/markdownField";
 
 export class ModalDataForm extends Modal {
 	dataItem: TDataItem
@@ -158,54 +159,53 @@ export class ModalDataForm extends Modal {
 					case 'conditional':
 						break;
 					case 'markdown':
-
-						const file = await this.startMarkdownFile(field, entitySchema)
-						const link = contentEl.createEl('button')
-						setIcon(link, 'external-link')
-						link.onclick = async () => {
-
-							if (file && file instanceof TFile) {
-								await this.app.workspace.getLeaf(true).openFile(file);
-							} else {
-								new Notice(`File not found.`);
-							}
-						}
+						new Setting(contentEl).setName(field.label).setDisabled(true).setDesc('Your markdown file will be created when data is submit.');
 						break;
 				}
 			})
-		}
 
-		new Setting(contentEl).addButton(btn => {
-			btn.setButtonText('verify').onClick(async () => {
-				console.log("Form data:", this.dataItem);
-				// If result has data, it can save inside the data.md
-				if (this.dataItem != null) {
 
-					const entityData = await getEntityData(this.app)
-					if (this.isUpdate) {
-						this.dataItem.updatedAt = new Date().toISOString()
-						new ConfirmDialog(this.app, 'Are you sure you want to update this item?', async () => {
-							const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data.filter(item => item.id != this.dataItem.id), this.dataItem] }, null, 2);
+			new Setting(contentEl).addButton(btn => {
+				btn.setButtonText('verify').onClick(async () => {
+					console.log("Form data:", this.dataItem);
+					// If result has data, it can save inside the data.md
+					if (this.dataItem != null) {
+
+						//generate md file if already not created
+						const mdField = entitySchema.fields.find(item => item.type === 'markdown')
+						console.log(mdField)
+						if (mdField) {
+							const file = await getMarkdownFieldFile(this.app, mdField, entitySchema, this.dataItem.id)
+							if (file) this.dataItem[mdField.name] = file.path
+						}
+
+
+						const entityData = await getEntityData(this.app)
+						if (this.isUpdate) {
+							this.dataItem.updatedAt = new Date().toISOString()
+							new ConfirmDialog(this.app, 'Are you sure you want to update this item?', async () => {
+								const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data.filter(item => item.id != this.dataItem.id), this.dataItem] }, null, 2);
+								if (currentFolder)
+									await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+							}, () => {
+								new Notice('You canceled the edit')
+							})
+						} else {
+							this.dataItem.createdAt = new Date().toISOString()
+							this.dataItem.updatedAt = new Date().toISOString()
+							const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data, this.dataItem] }, null, 2);
 							if (currentFolder)
 								await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-						}, () => {
-							new Notice('You canceled the edit')
-						})
-					} else {
-						this.dataItem.createdAt = new Date().toISOString()
-						this.dataItem.updatedAt = new Date().toISOString()
-						const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data, this.dataItem] }, null, 2);
-						if (currentFolder)
-							await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+						}
 					}
-				}
-				this.close();
-				return true
-				// } else {
-				// 	new Notice("Fill all the fields");
-				// }
+					this.close();
+					return true
+					// } else {
+					// 	new Notice("Fill all the fields");
+					// }
+				})
 			})
-		})
+		}
 	}
 
 	onClose() {
@@ -255,30 +255,6 @@ export class ModalDataForm extends Modal {
 						updateCombined();
 					});
 			});
-	}
-
-	async startMarkdownFile(field: TMarkdownField, entitySchema: TEntity): Promise<TAbstractFile | null> {
-		let prefix = ''
-		let title = ''
-		if (field.prefixType == 'field') {
-			const chosenField = entitySchema.fields.find(item => item.name == field.prefix)
-			prefix = chosenField + '-'
-			title = field.prefix
-		} else if (field.prefixType == 'text') {
-			prefix = field.prefix + '-'
-			title = field.prefix
-		} else {
-			prefix = ''
-			title = ''
-		}
-
-		const filePath = `md/${prefix}${entitySchema.entity}-${this.dataItem.id}.md`;
-
-		await this.app.vault.create(filePath, `# ${title}\n`);
-		const newFile = this.app.vault.getAbstractFileByPath(filePath);
-		await this.app.workspace.getLeaf(true).openFile(newFile as TFile);
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-		return file
 	}
 }
 

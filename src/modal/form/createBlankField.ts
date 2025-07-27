@@ -25,6 +25,14 @@ export function createBlankField(type: TTypeField): TField {
 				basedOn: '',
 				cases: {}
 			} as Extract<TField, { type: 'conditional' }>
+		case 'markdown':
+			return {
+				name: '',
+				label: '',
+				type,
+				prefix: '',
+				prefixType: ''
+			} as Extract<TField, { type: 'markdown' }>
 		default:
 			return {
 				name: '',
