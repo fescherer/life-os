@@ -40,3 +40,8 @@ export async function createNewFolderInCurrentDir(app: App, folderName: string) 
 		console.error("Failed to create folder:", err);
 	}
 }
+
+export async function getCurrentFolder(app: App) {
+	const activeFile = app.workspace.getActiveFile();
+	return activeFile?.parent?.path;
+}

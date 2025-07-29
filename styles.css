@@ -54,3 +54,8 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 8px;
 	background-color: var(--background-primary-alt);
 }
+
+.flex-container {
+	display: flex;
+	justify-content: space-between;
+}

@@ -1,17 +1,20 @@
-import { Modal, App, Setting, Notice, setIcon, TFile, TAbstractFile } from "obsidian";
-import { TCommonField, TData, TDataItem, TEntity, TMarkdownField, TOptionItem } from "src/types/field";
-import { ConfirmDialog } from "src/utils/confirmDialog";
+import { Modal, App, Setting, Notice, TFile, TAbstractFile } from "obsidian";
+import { TDataItem } from "src/types/data";
+import { TBaseField, TCommonField, TEntity, TMarkdownField, TNumberField, TSelectField } from "src/types/field";
+import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema } from "src/utils/entity-util";
+import { getCurrentFolder } from "src/utils/folderName";
 import { fileExists, updateMDFile } from "src/utils/markdown-manager";
-import { getMarkdownFieldFile, getMarkdownFieldName } from "src/utils/markdownField";
 
 export class ModalDataForm extends Modal {
 	dataItem: TDataItem
 	isUpdate: boolean
+	isSubmited: boolean
 
 	constructor(app: App, defaultData?: TDataItem) {
 		super(app);
 		this.isUpdate = defaultData ? true : false
+		this.isSubmited = false;
 		this.dataItem = defaultData ? defaultData : {
 			id: crypto.randomUUID(),
 			createdAt: new Date().toISOString(),
@@ -19,35 +22,11 @@ export class ModalDataForm extends Modal {
 		}
 	}
 
-	// {
-	// 	"entity": "full",
-	// 	"label": "Full",
-	// 	"data": [
-	// 		{
-	// 			"title": "String content",
-	// 			"weight": 85.6,
-	// 			"show-tutorial": true,
-	// 			"birthday": "2025-07-01T19:00:20.511Z",
-	// 			"reminder": 3600,
-	// 			"favorite-food": "cake",
-	// 			"tag": ["one-piece", "kimetsu-non-yaiba", "one-punch-man"],
-	// 			"site": "https://google.com",
-	// 			"thumbnail": "path/to/file/thumb.png",
-	// 			"complex-list": [1,3,4,1,5,12,51,2],
-	// 			"food": {
-	// 					"name": "Red Velvet",
-	// 					"quantity": 3
-	// 			}
-	// 		}
-	// 	]
-	// }
-
-
 	async onOpen() {
 		const { contentEl } = this;
 
-		const activeFile = this.app.workspace.getActiveFile();
-		const currentFolder = activeFile?.parent?.path;
+		const currentFolder = await getCurrentFolder(this.app)
+		console.log(currentFolder)
 		const file = fileExists(this.app, `${currentFolder}/entity.md`)
 		if (!file) {
 			contentEl.createEl("h2", { text: "Entity Schema not found!" });
@@ -63,169 +42,139 @@ export class ModalDataForm extends Modal {
 
 			const dialogTitle = this.isUpdate ? 'Edit' : 'Create'
 			contentEl.createEl("h2", { text: `${dialogTitle} data for ${entitySchema.label}` });
-			// TODO Add default values to inputs if there is an update. If user does leave at blank, just update with the default value
+
 			entitySchema.fields.map(async (field) => {
 				switch (field.type) {
 					case 'string':
 						new Setting(contentEl).setName(field.label)
-							.addText(text => text.onChange(val => (this.dataItem[field.name] = val)));
+							.addTextArea(text => {
+								text.onChange(val => (this.dataItem[field.name] = val))
+									.setPlaceholder('Type a text')
+								text.inputEl.style.resize = 'vertical'
+								text.inputEl.style.width = '100%'
+							});
 						break;
 					case 'number':
 						new Setting(contentEl).setName(field.label)
 							.addText(text => {
 								text.inputEl.type = "number";
-								text.onChange(val => (this.dataItem[field.name] = val))
+								text.setPlaceholder('Type a number')
+								const precision = (field as TNumberField).precision;
+								text.inputEl.step = (1 / Math.pow(10, precision)).toString();
+
+								text.onChange(val => {
+									const parsed = parseFloat(val);
+									this.dataItem[field.name] = isNaN(parsed) ? undefined : parsed;
+								})
 							});
 						break;
 					case 'boolean':
-						new Setting(contentEl).addToggle(c => c.onChange(val => (this.dataItem[field.name] = val)))
+						new Setting(contentEl).setName(field.label).addToggle(c => c.onChange(val => (this.dataItem[field.name] = val)))
 						break;
 					case 'date':
+						this.renderDate(field, contentEl)
 						break;
 					case 'select':
-						new Setting(contentEl).addDropdown(dropdown => {
-							const options = this.getOptionsFormat(field.options)
-
-							dropdown
-								.addOptions((options))
-								.onChange(val => (this.dataItem[field.name] = val))
-						})
-						break;
-					case 'multiselect':
-						new Setting(contentEl).addDropdown(dropdown => {
-							const optionsContainer = contentEl.createEl("div");
-
-							let options = this.getOptionsFormat(field.options)
-							dropdown
-								.addOptions(options)
-								.onChange(val => {
-									// eslint-disable-next-line @typescript-eslint/no-unused-vars
-									const { [val]: _, ...newOptions } = options
-									options = newOptions
-									optionsContainer
-									// this.dataItem[field.name] = val
-								})
-						})
+						this.renderSelect(field, contentEl)
 						break;
 					case 'url':
-						this.getURL(contentEl, field)
+						this.renderURL(field, contentEl)
 						break;
 					case 'file':
-
-						new Setting(contentEl)
-							.setName(field.label)
-							.addButton((btn) => {
-								const imagePathText = contentEl.createDiv();
-								btn.setButtonText("Choose File").onClick(() => {
-									const fileInput = document.createElement("input");
-									fileInput.type = "file";
-									fileInput.accept = "*/*"; // You can limit to specific types, e.g., ".pdf" or "image/*"
-
-									fileInput.onchange = async () => {
-										if (!fileInput.files || fileInput.files.length === 0) return;
-
-										const file = fileInput.files[0];
-
-										const arrayBuffer = await file.arrayBuffer();
-										const fileName = file.name;
-										const activeFile = this.app.workspace.getActiveFile();
-										const currentFolder = activeFile?.parent?.path;
-										const targetPath = `${currentFolder}/files/${fileName}`;
-
-										try {
-											const folderPath = targetPath.split("/").slice(0, -1).join("/");
-											if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-												await this.app.vault.createFolder(folderPath);
-											}
-
-											await this.app.vault.createBinary(targetPath, arrayBuffer);
-
-											new Notice(`Imported file: ${fileName}`);
-											imagePathText.setText(fileName)
-											this.dataItem[field.name] = fileName
-										} catch (err) {
-											console.error("Error importing file:", err);
-											new Notice("Failed to import file.");
-										}
-									};
-									fileInput.click();
-								});
-							})
+						this.renderFile(field, contentEl)
 						break;
 					case 'array':
-						new Setting(contentEl).setName(field.label)
-							.addText(text => text.onChange(val => (this.dataItem[field.name] = val)));
-						break;
-					case 'conditional':
+						this.renderArray(field, entitySchema, contentEl)
 						break;
 					case 'markdown':
-						new Setting(contentEl).setName(field.label).setDisabled(true).setDesc('Your markdown file will be created when data is submit.');
+						this.renderMarkdown(field, entitySchema, contentEl)
 						break;
 				}
 			})
-
-
-			new Setting(contentEl).addButton(btn => {
-				btn.setButtonText('verify').onClick(async () => {
-					console.log("Form data:", this.dataItem);
-					// If result has data, it can save inside the data.md
-					if (this.dataItem != null) {
-
-						//generate md file if already not created
-						const mdField = entitySchema.fields.find(item => item.type === 'markdown')
-						console.log(mdField)
-						if (mdField) {
-							const file = await getMarkdownFieldFile(this.app, mdField, entitySchema, this.dataItem.id)
-							if (file) this.dataItem[mdField.name] = file.path
-						}
-
-
-						const entityData = await getEntityData(this.app)
-						if (this.isUpdate) {
-							this.dataItem.updatedAt = new Date().toISOString()
-							new ConfirmDialog(this.app, 'Are you sure you want to update this item?', async () => {
-								const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data.filter(item => item.id != this.dataItem.id), this.dataItem] }, null, 2);
-								if (currentFolder)
-									await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-							}, () => {
-								new Notice('You canceled the edit')
-							})
-						} else {
-							this.dataItem.createdAt = new Date().toISOString()
-							this.dataItem.updatedAt = new Date().toISOString()
-							const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data, this.dataItem] }, null, 2);
-							if (currentFolder)
-								await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-						}
-					}
-					this.close();
-					return true
-					// } else {
-					// 	new Notice("Fill all the fields");
-					// }
-				})
-			})
 		}
+
+		new Setting(contentEl).addButton(btn => {
+			btn.setButtonText('verify').onClick(async () => {
+				console.log("Form data:", this.dataItem);
+				this.createData()
+			})
+		})
 	}
 
 	onClose() {
-		// new Notice("You close before saving. Creating with default values! ");
-		// const { contentEl } = this;
-		// this.onSubmit(false, {
-		// 	name: "Default Name",
-		// 	type: "string",
-		// });
-		// contentEl.empty();
+		if (!this.isSubmited) {
+			new Notice("You close before saving. Nothing was created");
+			const { contentEl } = this;
+			contentEl.empty();
+		}
 	}
 
-	getOptionsFormat(options: TOptionItem[]) {
-		return options.reduce<Record<string, string>>((acc, item) => {
-			acc[item.title] = item.title
-			return acc
-		}, {})
+	private async createData() {
+		const currentFolder = await getCurrentFolder(this.app)
+		const entityData = await getEntityData(this.app)
+		if (this.isUpdate) {
+			this.dataItem.updatedAt = new Date().toISOString()
+			new ConfirmDialog(this.app, 'Are you sure you want to update this item?', async () => {
+				const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data.filter(item => item.id != this.dataItem.id), this.dataItem] }, null, 2);
+				if (currentFolder)
+					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+			}, () => {
+				new Notice('You canceled the edit')
+			})
+		} else {
+			this.dataItem.createdAt = new Date().toISOString()
+			this.dataItem.updatedAt = new Date().toISOString()
+			if (!this.verifyData()) {
+				this.createMarkdownFile()
+				const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data, this.dataItem] }, null, 2);
+				if (currentFolder)
+					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+			}
+			else {
+				new Notice("Fill all the fields!")
+			}
+		}
 	}
 
-	getURL(contentEl: HTMLElement, field: TCommonField) {
+	// Verificar isso aqi
+	private async verifyData() {
+		const entitySchema = await getEntitySchema(this.app)
+
+		const dataKeys = Object.keys(entitySchema.fields)
+		return entitySchema.fields.find(field => {
+			dataKeys.find(key =>
+				key === field.name && this.dataItem[key] === undefined || this.dataItem[key] === null
+			)
+		})
+	}
+
+	private renderDate(field: TCommonField, contentEl: HTMLElement) {
+		new Setting(contentEl)
+			.setName(field.label)
+			.addText(text => {
+				text.inputEl.type = "date";
+				text.onChange(val => {
+					text.setPlaceholder('Type a date')
+					const isoString = new Date(val).toISOString();
+					this.dataItem[field.name] = isoString;
+				});
+			});
+	}
+
+	private renderSelect(field: TSelectField, contentEl: HTMLElement) {
+		new Setting(contentEl).setName(field.label).addDropdown(dropdown => {
+			const options = field.options.reduce<Record<string, string>>((acc, item) => {
+				acc[item.title] = item.title
+				return acc
+			}, {})
+
+			dropdown
+				.addOptions((options))
+				.onChange(val => (this.dataItem[field.name] = val))
+		})
+	}
+
+	private renderURL(field: TCommonField, contentEl: HTMLElement) {
 		let urlPrefix = 'https://'
 		let url = ''
 
@@ -255,6 +204,103 @@ export class ModalDataForm extends Modal {
 						updateCombined();
 					});
 			});
+	}
+
+	private getMarkdownFilePath(field: TMarkdownField, entitySchema: TEntity): string {
+		let prefix = ''
+		if (field.prefixType == 'field') {
+			const chosenField = entitySchema.fields.find(item => item.name == field.prefix)
+			prefix = chosenField?.name + '-'
+		} else if (field.prefixType == 'text') {
+			prefix = field.prefix + '-'
+		} else {
+			prefix = ''
+		}
+
+		return `md/${prefix}${entitySchema.entity}-${this.dataItem.id}.md`;
+	}
+
+	private async createMarkdownFile(): Promise<TAbstractFile | null> {
+		const entitySchema = await getEntitySchema(this.app)
+		const hasMarkdownFile = entitySchema.fields.find(item => item.type === 'markdown')
+		if (!hasMarkdownFile) return null
+
+		const filePath = this.getMarkdownFilePath(hasMarkdownFile, entitySchema)
+
+		await this.app.vault.create(filePath, `# MD File\n`);
+		const newFile = this.app.vault.getAbstractFileByPath(filePath);
+		await this.app.workspace.getLeaf(true).openFile(newFile as TFile);
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		return file
+	}
+
+	private renderMarkdown(field: TMarkdownField, entitySchema: TEntity, container: HTMLElement) {
+		const file = this.getMarkdownFilePath(field, entitySchema)
+		this.dataItem[field.name] = file
+		new Setting(container).setName(field.label).then(setting => {
+			setting.controlEl.createEl("span", {
+				text: file,
+				cls: "setting-item-description"
+			});
+		})
+	}
+
+	private renderFile(field: TCommonField, container: HTMLElement) {
+		new Setting(container)
+			.setName(field.label)
+			.addButton((btn) => {
+				const imagePathText = container.createDiv();
+				btn.setButtonText("Choose File").onClick(() => {
+					const fileInput = document.createElement("input");
+					fileInput.type = "file";
+					fileInput.accept = "*/*"; // You can limit to specific types, e.g., ".pdf" or "image/*"
+
+					fileInput.onchange = async () => {
+						if (!fileInput.files || fileInput.files.length === 0) return;
+
+						const file = fileInput.files[0];
+
+						const arrayBuffer = await file.arrayBuffer();
+						const fileName = file.name;
+						const currentFolder = await getCurrentFolder(this.app)
+						const targetPath = `${currentFolder}/files/${fileName}`;
+
+						try {
+							const folderPath = targetPath.split("/").slice(0, -1).join("/");
+							if (!this.app.vault.getAbstractFileByPath(folderPath)) {
+								await this.app.vault.createFolder(folderPath);
+							}
+
+							await this.app.vault.createBinary(targetPath, arrayBuffer);
+
+							new Notice(`Imported file: ${fileName}`);
+							imagePathText.setText(fileName)
+							this.dataItem[field.name] = fileName
+						} catch (err) {
+							console.error("Error importing file:", err);
+							new Notice("Failed to import file.");
+						}
+					};
+					fileInput.click();
+				});
+			})
+	}
+
+	private renderArray(field: TBaseField, entitySchema: TEntity, wrapper: HTMLElement) {
+		//TODO add badges each click or just leave as a text field string
+		const container = wrapper.createDiv()
+		new Setting(wrapper).setName(field.label)
+			.addText(text => text.onChange(val => {
+				this.dataItem[field.name] = val
+				renderFieldArray()
+			}));
+
+		renderFieldArray()
+
+		function renderFieldArray() {
+			container.empty()
+			container.createSpan('dasdasdasd')
+		}
 	}
 }
 

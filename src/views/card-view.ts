@@ -1,10 +1,10 @@
-import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, WorkspaceLeaf } from "obsidian";
 import { ModalDataForm } from "src/modal/data/data-modal";
-import { TDataItem } from "src/types/field";
-import { ConfirmDialog } from "src/utils/confirmDialog";
+import { TDataItem } from "src/types/data";
+import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema, } from "src/utils/entity-util";
-import { fileExists, updateMDFile } from "src/utils/markdown-manager";
-import { getMarkdownFieldFile } from "src/utils/markdownField";
+import { getCurrentFolder } from "src/utils/folderName";
+import { updateMDFile } from "src/utils/markdown-manager";
 
 export const CARD_VIEW_TYPE = "card-view";
 
@@ -71,7 +71,7 @@ export class CardView extends ItemView {
 				})
 			}
 
-			Object.keys(data).map(async (fieldName) => {
+			Object.keys(data).map(fieldName => {
 				const fieldType = entitySchema.fields.find((field) => field.name === fieldName)
 				if (!fieldType) return
 
@@ -91,9 +91,6 @@ export class CardView extends ItemView {
 					case 'select':
 						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
 						break;
-					case 'multiselect':
-						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
-						break;
 					case 'url':
 						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
 						break;
@@ -102,23 +99,25 @@ export class CardView extends ItemView {
 						break;
 					case 'array':
 						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
-						break;
-					case 'conditional':
-						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
+						const arrayContainer = card.createDiv()
+
+						// TODO Guardar tudo como string
+						data[fieldName].toString().split(',').map(item => {
+							arrayContainer.createDiv({ text: item, cls: 'card-array-item' })
+						})
+
 						break;
 					case 'markdown':
 						const link = contentEl.createEl('button')
 						setIcon(link, 'external-link')
-						link.onclick = async () => {
-							const field = entitySchema.fields.find(item => item.type === 'markdown')
-							if (!field) return
-							const file = getMarkdownFieldFile(this.app, field, entitySchema, data.id)
-							if (file && file instanceof TFile) {
-								await this.app.workspace.getLeaf(true).openFile(file);
-							} else {
-								new Notice(`File not found.`);
-							}
-						}
+						// link.onclick = async () => {
+
+						// 	if (file && file instanceof TFile) {
+						// 		await this.app.workspace.getLeaf(true).openFile(file);
+						// 	} else {
+						// 		new Notice(`File not found.`);
+						// 	}
+						// }
 						break;
 					default:
 						console.log('No item')
@@ -137,8 +136,7 @@ export class CardView extends ItemView {
 		new ConfirmDialog(this.app,
 			'Do you want to remove this item?',
 			async () => {
-				const activeFile = this.app.workspace.getActiveFile();
-				const currentFolder = activeFile?.parent?.path;
+				const currentFolder = await getCurrentFolder(this.app)
 				const entityData = await getEntityData(this.app)
 
 				const newData = entityData.data.filter((item) => item.id !== data.id)
@@ -157,3 +155,12 @@ export class CardView extends ItemView {
 		new ModalDataForm(this.app, data).open();
 	}
 }
+
+
+
+
+
+
+
+
+//https://github.com/login?return_to=%2Fobsidianmd%2Fobsidian-sample-plugin
