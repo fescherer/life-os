@@ -59,3 +59,9 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	justify-content: space-between;
 }
+
+.array-item {
+	padding: 1rem;
+	background-color: var(--color-base-10);
+	border: 1px solid var(--color-base-30);
+}

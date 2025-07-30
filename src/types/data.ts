@@ -8,5 +8,5 @@ export type TDataItem = {
 	id: string;
 	createdAt: string;
 	updatedAt: string;
-	[key: string]: unknown;
+	[key: string]: string;
 }

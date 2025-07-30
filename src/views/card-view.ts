@@ -1,6 +1,8 @@
-import { ItemView, Notice, setIcon, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import { ModalDataForm } from "src/modal/data/data-modal";
+import { getMarkdownFilePath } from "src/modal/data/get-markdown-path";
 import { TDataItem } from "src/types/data";
+import { TEntity, TMarkdownField } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema, } from "src/utils/entity-util";
 import { getCurrentFolder } from "src/utils/folderName";
@@ -30,46 +32,14 @@ export class CardView extends ItemView {
 		const entityData = await getEntityData(this.app)
 
 		contentEl.empty();
-		contentEl.createEl("h2", { text: `Hello! You are seeing schema of ${entityData.label}` });
-
-		const btnAddNewData = contentEl.createEl("button", { cls: "icon-button" });
-		const iconEl = btnAddNewData.createSpan();
-		setIcon(iconEl, "plus");
-		iconEl.style.marginRight = "0.5em";
-		btnAddNewData.createSpan({ text: "Add data" });
-		btnAddNewData.onclick = () => this.addOrEditCardItem()
+		this.renderPageHeader(contentEl, entityData.label)
 
 		const cardContainer = contentEl.createDiv({ cls: 'card-container ' })
 
-		entityData.data.map((data, a, b) => {
-			console.log("data: ", data, a, b)
+		entityData.data.map((data, index, allData) => {
+			console.log("data: ", data, index, allData)
 			const card = cardContainer.createDiv({ cls: "card" });
-			const btnContainer = card.createDiv({ cls: "btn-container" })
-
-			const btnEdit = btnContainer.createEl("button", { cls: "icon-button" });
-			setIcon(btnEdit, "pencil");
-			btnEdit.onclick = () => this.addOrEditCardItem(data)
-
-			const btnRemove = btnContainer.createEl("button", { cls: "icon-button" });
-			setIcon(btnRemove, "trash");
-			btnRemove.onclick = () => this.removeCardItem(data)
-
-
-			card.createEl("h3", { text: `Field Index: ${a.toString()}` });
-
-			const imageField = entitySchema.fields.find((field) => field.type == 'file')
-			if (imageField) {
-				// If there is a file inside the schema, add a visualization of it 
-				// TODO Make img-cover style
-				card.createEl('img', {
-					cls: 'img-cover',
-					attr: {
-						src: data[imageField.name] as string,
-						width: "200",
-						loading: 'lazy'
-					}
-				})
-			}
+			this.renderCardHeader(card, data, entitySchema, index)
 
 			Object.keys(data).map(fieldName => {
 				const fieldType = entitySchema.fields.find((field) => field.name === fieldName)
@@ -100,24 +70,13 @@ export class CardView extends ItemView {
 					case 'array':
 						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
 						const arrayContainer = card.createDiv()
-
-						// TODO Guardar tudo como string
 						data[fieldName].toString().split(',').map(item => {
 							arrayContainer.createDiv({ text: item, cls: 'card-array-item' })
 						})
 
 						break;
 					case 'markdown':
-						const link = contentEl.createEl('button')
-						setIcon(link, 'external-link')
-						// link.onclick = async () => {
-
-						// 	if (file && file instanceof TFile) {
-						// 		await this.app.workspace.getLeaf(true).openFile(file);
-						// 	} else {
-						// 		new Notice(`File not found.`);
-						// 	}
-						// }
+						this.renderMarkdown(contentEl, data, fieldName, entitySchema)
 						break;
 					default:
 						console.log('No item')
@@ -131,34 +90,88 @@ export class CardView extends ItemView {
 		// Clean up if needed
 	}
 
-	removeCardItem(data: TDataItem) {
-		console.log('Remove card')
-		new ConfirmDialog(this.app,
-			'Do you want to remove this item?',
-			async () => {
-				const currentFolder = await getCurrentFolder(this.app)
-				const entityData = await getEntityData(this.app)
+	private renderPageHeader(contentEl: HTMLElement, title: string) {
+		contentEl.createEl("h2", { text: `Hello! You are seeing schema of ${title}` });
 
-				const newData = entityData.data.filter((item) => item.id !== data.id)
-				const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
-
-				if (currentFolder)
-					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-				new Notice(`You hve deleted an item from ${entityData.label}`)
-			}, () => {
-
-			}).open()
-		this.onOpen()
+		const btnAddNewData = contentEl.createEl("button", { cls: "icon-button" });
+		const iconEl = btnAddNewData.createSpan();
+		setIcon(iconEl, "plus");
+		iconEl.style.marginRight = "0.5em";
+		btnAddNewData.createSpan({ text: "Add data" });
+		btnAddNewData.onclick = () => {
+			new ModalDataForm(this.app).open();
+		}
 	}
 
-	addOrEditCardItem(data?: TDataItem) {
-		new ModalDataForm(this.app, data).open();
+	private renderCardHeader(card: HTMLElement, data: TDataItem, entitySchema: TEntity, index: number) {
+		const btnContainer = card.createDiv({ cls: "btn-container" })
+
+		const btnEdit = btnContainer.createEl("button", { cls: "icon-button" });
+		setIcon(btnEdit, "pencil");
+		btnEdit.onclick = () => {
+			new ModalDataForm(this.app, data).open();
+		}
+
+		const btnRemove = btnContainer.createEl("button", { cls: "icon-button" });
+		setIcon(btnRemove, "trash");
+		btnRemove.onclick = () => {
+			console.log('Remove card')
+			new ConfirmDialog(this.app,
+				'Do you want to remove this item?',
+				async () => {
+					const currentFolder = await getCurrentFolder(this.app)
+					const entityData = await getEntityData(this.app)
+
+					const newData = entityData.data.filter((item) => item.id !== data.id)
+					const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
+
+					if (currentFolder)
+						await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+					new Notice(`You hve deleted an item from ${entityData.label}`)
+				}, () => {
+
+				}).open()
+			this.onOpen()
+		}
+
+
+		card.createEl("h3", { text: `Field Index: ${index.toString()}` });
+
+		const imageField = entitySchema.fields.find((field) => field.type == 'file')
+		if (imageField) {
+			// TODO Make img-cover style
+			card.createEl('img', {
+				cls: 'img-cover',
+				attr: {
+					src: data[imageField.name] as string,
+					width: "200",
+					loading: 'lazy'
+				}
+			})
+		}
+	}
+
+	//Problema, e se tiver dois fields markdown? O id sera o mesmo e vai dar pau
+	private renderMarkdown(contentEl: HTMLElement, dataItem: TDataItem, fieldName: string, entitySchema: TEntity) {
+		const link = contentEl.createEl('button')
+		setIcon(link, 'external-link')
+
+		link.onClickEvent(async () => {
+			const field = entitySchema.fields.find(item => item.name === fieldName && item.type === 'markdown')
+			if (!field) return
+			const filePath = getMarkdownFilePath(field as TMarkdownField, entitySchema, dataItem[fieldName])
+
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (file instanceof TFile) {
+				const leaf = this.app.workspace.getLeaf(true);
+				await leaf.openFile(file);
+			} else {
+				new Notice(`File not found: ${filePath}`);
+			}
+		})
+
 	}
 }
-
-
-
-
 
 
 

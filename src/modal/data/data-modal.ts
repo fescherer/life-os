@@ -1,19 +1,22 @@
-import { Modal, App, Setting, Notice, TFile, TAbstractFile } from "obsidian";
+import { Modal, App, Setting, Notice, TFile, TAbstractFile, TFolder } from "obsidian";
 import { TDataItem } from "src/types/data";
-import { TBaseField, TCommonField, TEntity, TMarkdownField, TNumberField, TSelectField } from "src/types/field";
+import { TBaseField, TCommonField, TMarkdownField, TNumberField, TSelectField } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema } from "src/utils/entity-util";
 import { getCurrentFolder } from "src/utils/folderName";
 import { fileExists, updateMDFile } from "src/utils/markdown-manager";
+import { getMarkdownFilePath } from "./get-markdown-path";
 
 export class ModalDataForm extends Modal {
 	dataItem: TDataItem
 	isUpdate: boolean
 	isSubmited: boolean
+	defaultData: TDataItem | undefined
 
 	constructor(app: App, defaultData?: TDataItem) {
 		super(app);
 		this.isUpdate = defaultData ? true : false
+		this.defaultData = defaultData
 		this.isSubmited = false;
 		this.dataItem = defaultData ? defaultData : {
 			id: crypto.randomUUID(),
@@ -46,30 +49,13 @@ export class ModalDataForm extends Modal {
 			entitySchema.fields.map(async (field) => {
 				switch (field.type) {
 					case 'string':
-						new Setting(contentEl).setName(field.label)
-							.addTextArea(text => {
-								text.onChange(val => (this.dataItem[field.name] = val))
-									.setPlaceholder('Type a text')
-								text.inputEl.style.resize = 'vertical'
-								text.inputEl.style.width = '100%'
-							});
+						this.renderString(field, contentEl)
 						break;
 					case 'number':
-						new Setting(contentEl).setName(field.label)
-							.addText(text => {
-								text.inputEl.type = "number";
-								text.setPlaceholder('Type a number')
-								const precision = (field as TNumberField).precision;
-								text.inputEl.step = (1 / Math.pow(10, precision)).toString();
-
-								text.onChange(val => {
-									const parsed = parseFloat(val);
-									this.dataItem[field.name] = isNaN(parsed) ? undefined : parsed;
-								})
-							});
+						this.renderNumber(field, contentEl)
 						break;
 					case 'boolean':
-						new Setting(contentEl).setName(field.label).addToggle(c => c.onChange(val => (this.dataItem[field.name] = val)))
+						this.renderBoolean(field, contentEl)
 						break;
 					case 'date':
 						this.renderDate(field, contentEl)
@@ -84,21 +70,20 @@ export class ModalDataForm extends Modal {
 						this.renderFile(field, contentEl)
 						break;
 					case 'array':
-						this.renderArray(field, entitySchema, contentEl)
+						this.renderArray(field, contentEl)
 						break;
 					case 'markdown':
-						this.renderMarkdown(field, entitySchema, contentEl)
+						this.renderMarkdown(field, contentEl)
 						break;
 				}
 			})
-		}
-
-		new Setting(contentEl).addButton(btn => {
-			btn.setButtonText('verify').onClick(async () => {
-				console.log("Form data:", this.dataItem);
-				this.createData()
+			new Setting(contentEl).addButton(btn => {
+				btn.setButtonText('verify').onClick(async () => {
+					console.log("Form data:", this.dataItem);
+					this.createData()
+				})
 			})
-		})
+		}
 	}
 
 	onClose() {
@@ -124,42 +109,119 @@ export class ModalDataForm extends Modal {
 		} else {
 			this.dataItem.createdAt = new Date().toISOString()
 			this.dataItem.updatedAt = new Date().toISOString()
-			if (!this.verifyData()) {
+
+			const validate = await this.validateEntityData()
+			if (validate.isValid) {
 				this.createMarkdownFile()
+				this.sendImages()
 				const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data, this.dataItem] }, null, 2);
 				if (currentFolder)
 					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+				this.isSubmited = true
+				this.close()
 			}
 			else {
-				new Notice("Fill all the fields!")
+				new Notice(`Fill all the fields! ${validate.missingFields}`)
 			}
 		}
 	}
 
-	// Verificar isso aqi
-	private async verifyData() {
-		const entitySchema = await getEntitySchema(this.app)
 
-		const dataKeys = Object.keys(entitySchema.fields)
-		return entitySchema.fields.find(field => {
-			dataKeys.find(key =>
-				key === field.name && this.dataItem[key] === undefined || this.dataItem[key] === null
-			)
+
+	private async createMarkdownFile(): Promise<TAbstractFile | null> {
+		const entitySchema = await getEntitySchema(this.app)
+		const hasMarkdownFile = entitySchema.fields.find(item => item.type === 'markdown')
+		if (!hasMarkdownFile) return null
+
+		const filePath = getMarkdownFilePath(hasMarkdownFile, entitySchema, this.dataItem.id)
+		console.log(filePath)
+		const currentPath = await getCurrentFolder(this.app)
+
+
+		const hasFolderCreated = this.app.vault.getFolderByPath(`${currentPath}/md`)
+		if (!hasFolderCreated) {
+			this.app.vault.createFolder(`${currentPath}/md`);
+		}
+
+		await this.app.vault.create(`${currentPath}/${filePath}`, `# MD File\n`);
+		console.log(`${currentPath}/${filePath}`)
+		const newFile = this.app.vault.getAbstractFileByPath(`${currentPath}/${filePath}`);
+		await this.app.workspace.getLeaf(true).openFile(newFile as TFile);
+		const file = this.app.vault.getAbstractFileByPath(`${currentPath}/${filePath}`);
+		return file
+	}
+
+	private async validateEntityData() {
+		const entitySchema = await getEntitySchema(this.app)
+		const missingFields = [];
+
+		for (const field of entitySchema.fields) {
+			const value = this.dataItem[field.name];
+
+			const isEmpty = value === undefined || value === null
+
+			if (isEmpty)
+				missingFields.push(field.name);
+		}
+
+		return {
+			isValid: missingFields.length === 0,
+			missingFields
+		};
+	}
+
+	private renderString(field: TCommonField, contentEl: HTMLElement) {
+		new Setting(contentEl).setName(field.label)
+			.addTextArea(stringField => {
+				stringField.setValue(this.defaultData ? this.defaultData[field.name] : '')
+				stringField.onChange(val => (this.dataItem[field.name] = val))
+					.setPlaceholder('Type a text')
+				stringField.inputEl.style.resize = 'vertical'
+				stringField.inputEl.style.width = '100%'
+			});
+	}
+
+	private renderNumber(field: TNumberField, contentEl: HTMLElement) {
+		new Setting(contentEl).setName(field.label)
+			.addText(numberField => {
+				numberField.setValue(this.defaultData ? this.defaultData[field.name] : '')
+				numberField.inputEl.type = "number";
+				numberField.setPlaceholder('Type a number')
+				const precision = (field as TNumberField).precision;
+				numberField.inputEl.step = (1 / Math.pow(10, precision)).toString();
+
+				numberField.onChange(val => {
+					const parsed = parseFloat(val);
+					this.dataItem[field.name] = isNaN(parsed) ? 'undefined' : parsed.toString();
+				})
+			});
+	}
+
+	private renderBoolean(field: TCommonField, contentEl: HTMLElement) {
+		new Setting(contentEl).setName(field.label).addToggle(booleanField => {
+			const defaultBoolean = this.defaultData ? this.defaultData[field.name] : ''
+			booleanField.setValue(!!defaultBoolean)
+			booleanField.onChange(val => (this.dataItem[field.name] = val.toString()))
 		})
 	}
 
 	private renderDate(field: TCommonField, contentEl: HTMLElement) {
 		new Setting(contentEl)
 			.setName(field.label)
-			.addText(text => {
-				text.inputEl.type = "date";
-				text.onChange(val => {
-					text.setPlaceholder('Type a date')
+			.addText(dateField => {
+				const date = new Date()
+				const defaultDate = this.defaultData ? this.defaultData[field.name].split("T")[0] : date.toISOString().split("T")[0]
+
+				dateField.setValue(defaultDate)
+				dateField.inputEl.type = "date";
+				dateField.onChange(val => {
+					dateField.setPlaceholder('Type a date')
 					const isoString = new Date(val).toISOString();
 					this.dataItem[field.name] = isoString;
 				});
 			});
 	}
+
 
 	private renderSelect(field: TSelectField, contentEl: HTMLElement) {
 		new Setting(contentEl).setName(field.label).addDropdown(dropdown => {
@@ -169,30 +231,27 @@ export class ModalDataForm extends Modal {
 			}, {})
 
 			dropdown
+				.setValue(this.defaultData ? this.defaultData[field.name] : options[Object.keys(options)[0]])
 				.addOptions((options))
 				.onChange(val => (this.dataItem[field.name] = val))
 		})
 	}
 
 	private renderURL(field: TCommonField, contentEl: HTMLElement) {
-		let urlPrefix = 'https://'
-		let url = ''
+		const defaultURL = this.defaultData ? this.defaultData[field.name].split('|') : ''
 
-		const updateCombined = async () => {
-			const part1 = urlPrefix || "";
-			const part2 = url || "";
-			this.dataItem[field.name] = `${part1}${part2}`;
-		};
+		let urlPrefix = defaultURL[0] || 'https://'
+		let url = defaultURL[1] || ''
 
 		new Setting(contentEl)
 			.setName(field.label)
 			.addText(text1 => {
 				text1
+					.setValue(urlPrefix)
 					.setPlaceholder("Prefix")
-					.setValue(urlPrefix || "")
 					.onChange(value => {
 						urlPrefix = value;
-						updateCombined();
+						this.dataItem[field.name] = `${urlPrefix}|${url}`;
 					});
 			})
 			.addText(text2 => {
@@ -201,41 +260,16 @@ export class ModalDataForm extends Modal {
 					.setValue(url || "")
 					.onChange(value => {
 						url = value;
-						updateCombined();
+						this.dataItem[field.name] = `${urlPrefix}|${url}`;
 					});
 			});
 	}
 
-	private getMarkdownFilePath(field: TMarkdownField, entitySchema: TEntity): string {
-		let prefix = ''
-		if (field.prefixType == 'field') {
-			const chosenField = entitySchema.fields.find(item => item.name == field.prefix)
-			prefix = chosenField?.name + '-'
-		} else if (field.prefixType == 'text') {
-			prefix = field.prefix + '-'
-		} else {
-			prefix = ''
-		}
 
-		return `md/${prefix}${entitySchema.entity}-${this.dataItem.id}.md`;
-	}
 
-	private async createMarkdownFile(): Promise<TAbstractFile | null> {
+	private async renderMarkdown(field: TMarkdownField, container: HTMLElement) {
 		const entitySchema = await getEntitySchema(this.app)
-		const hasMarkdownFile = entitySchema.fields.find(item => item.type === 'markdown')
-		if (!hasMarkdownFile) return null
-
-		const filePath = this.getMarkdownFilePath(hasMarkdownFile, entitySchema)
-
-		await this.app.vault.create(filePath, `# MD File\n`);
-		const newFile = this.app.vault.getAbstractFileByPath(filePath);
-		await this.app.workspace.getLeaf(true).openFile(newFile as TFile);
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-		return file
-	}
-
-	private renderMarkdown(field: TMarkdownField, entitySchema: TEntity, container: HTMLElement) {
-		const file = this.getMarkdownFilePath(field, entitySchema)
+		const file = getMarkdownFilePath(field, entitySchema, this.dataItem.id)
 		this.dataItem[field.name] = file
 		new Setting(container).setName(field.label).then(setting => {
 			setting.controlEl.createEl("span", {
@@ -250,10 +284,12 @@ export class ModalDataForm extends Modal {
 			.setName(field.label)
 			.addButton((btn) => {
 				const imagePathText = container.createDiv();
+				imagePathText.setText(this.defaultData ? this.defaultData[field.name] : '')
+
 				btn.setButtonText("Choose File").onClick(() => {
 					const fileInput = document.createElement("input");
 					fileInput.type = "file";
-					fileInput.accept = "*/*"; // You can limit to specific types, e.g., ".pdf" or "image/*"
+					fileInput.accept = "*/*";
 
 					fileInput.onchange = async () => {
 						if (!fileInput.files || fileInput.files.length === 0) return;
@@ -263,21 +299,17 @@ export class ModalDataForm extends Modal {
 						const arrayBuffer = await file.arrayBuffer();
 						const fileName = file.name;
 						const currentFolder = await getCurrentFolder(this.app)
-						const targetPath = `${currentFolder}/files/${fileName}`;
+						const targetPath = `${currentFolder}/temp`;
 
 						try {
-							const folderPath = targetPath.split("/").slice(0, -1).join("/");
-							if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-								await this.app.vault.createFolder(folderPath);
+							if (!this.app.vault.getAbstractFileByPath(targetPath)) {
+								await this.app.vault.createFolder(targetPath);
 							}
+							await this.app.vault.createBinary(`${targetPath}/${fileName}`, arrayBuffer);
 
-							await this.app.vault.createBinary(targetPath, arrayBuffer);
-
-							new Notice(`Imported file: ${fileName}`);
 							imagePathText.setText(fileName)
 							this.dataItem[field.name] = fileName
 						} catch (err) {
-							console.error("Error importing file:", err);
 							new Notice("Failed to import file.");
 						}
 					};
@@ -286,21 +318,53 @@ export class ModalDataForm extends Modal {
 			})
 	}
 
-	private renderArray(field: TBaseField, entitySchema: TEntity, wrapper: HTMLElement) {
-		//TODO add badges each click or just leave as a text field string
-		const container = wrapper.createDiv()
-		new Setting(wrapper).setName(field.label)
-			.addText(text => text.onChange(val => {
+	private async sendImages() {
+		const entitySchema = await getEntitySchema(this.app)
+		const hasTempFile = entitySchema.fields.find(item => item.type === 'file')
+		if (!hasTempFile) return null
+
+		const currentFolder = await getCurrentFolder(this.app)
+		const tempPath = `${currentFolder}/temp`;
+		const targetPath = `${currentFolder}/files`;
+
+		const vault = this.app.vault;
+
+		// Get source folder
+		const source = vault.getAbstractFileByPath(tempPath);
+		if (!(source instanceof TFolder)) {
+			console.warn(`Source folder "${tempPath}" not found.`);
+			return;
+		}
+
+		// Create target folder if it doesn't exist
+		let target = vault.getAbstractFileByPath(targetPath);
+		if (!(target instanceof TFolder)) {
+			await vault.createFolder(targetPath);
+			target = vault.getAbstractFileByPath(targetPath);
+		}
+
+		// Move each file inside source folder (not subfolders unless recursive)
+		for (const child of source.children) {
+			if (child instanceof TFile) {
+				const newPath = `${targetPath}/${child.name}`;
+				await vault.rename(child, newPath);
+			}
+		}
+	}
+
+	private renderArray(field: TBaseField, wrapper: HTMLElement) {
+		new Setting(wrapper).setName(field.label).setDesc('Use comma (,) to separate itens')
+			.addText(text => text.setValue(this.defaultData ? this.defaultData[field.name] : '').onChange(val => {
 				this.dataItem[field.name] = val
-				renderFieldArray()
+
+				const data = val.split(',')
+				container.empty()
+				data.map((item) => {
+					container.createDiv({ cls: 'array-item', text: item })
+				})
 			}));
 
-		renderFieldArray()
-
-		function renderFieldArray() {
-			container.empty()
-			container.createSpan('dasdasdasd')
-		}
+		const container = wrapper.createDiv()
 	}
 }
 
