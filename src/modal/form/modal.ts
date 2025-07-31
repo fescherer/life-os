@@ -1,43 +1,50 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
-import { TEntity, TField, TMarkdownField, TNumberField, TPrefixField, TSelectField, TTypeField } from "src/types/field";
+import { TEntity, TField, TFileField, TNumberField, TPrefixField, TSelectField, TTypeField } from "src/types/field";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: TEntity | null) => void;
-	result: TEntity
+	entity: TEntity
 	isSubmited: boolean
+	title: string
+	buttonText: string
 
 	constructor(app: App, onSubmit: (isValid: boolean, result: TEntity) => void, defaultData?: TEntity) {
 		super(app);
 		this.onSubmit = onSubmit;
 		this.isSubmited = false;
-		this.result = defaultData ? defaultData : {
+		this.entity = defaultData ? defaultData : {
 			entity: '',
 			label: '',
 			fields: []
 		}
+		this.title = defaultData ? `Edit ${this.entity.label}` : 'Create new Entity'
+		this.buttonText = defaultData ? `Edit ${this.entity.label}` : "Create"
 	}
 
 	onOpen() {
 		const { contentEl } = this;
-		contentEl.createEl("h2", { text: "Create new Entity" });
+		contentEl.createEl("h2", { text: this.title });
 
 		new Setting(contentEl)
 			.setName("Name")
-			.addText(text => text.onChange(val => (this.result.label = val)));
+			.addText(text => {
+				text.setValue(this.entity.label)
+				text.onChange(val => (this.entity.label = val))
+			});
 
 
 		new Setting(contentEl)
 			.addButton(btn =>
 				btn.setButtonText("Add Field").setCta().onClick(() => {
 					const newField = {
-						id: this.result.fields.length + 1,
+						id: this.entity.fields.length,
 						name: '',
 						label: '',
 						type: 'string',
 					} as Extract<TField, { type: TTypeField }>
 
-					this.result.fields.push(newField)
+					this.entity.fields.push(newField)
 
 					this.renderField(wrapper, newField)
 				})
@@ -45,9 +52,11 @@ export class ModalForm extends Modal {
 
 		const wrapper = contentEl.createDiv();
 
+		this.entity.fields.map(field => this.renderField(wrapper, field))
+
 		new Setting(contentEl)
 			.addButton(btn =>
-				btn.setButtonText("Create").setCta().onClick(() => {
+				btn.setButtonText(this.buttonText).setCta().onClick(() => {
 					this.createSchema()
 				})
 			);
@@ -64,46 +73,45 @@ export class ModalForm extends Modal {
 
 	private changeFieldOrder(wrapper: HTMLElement, direction: 'up' | 'down', changePositionField: TField) {
 		wrapper.empty()
-		this.result.fields.map(field => {
-			if (field.id === changePositionField.id) {
-				if (direction === 'up')
-					field.id = field.id + 1
-				if (direction === 'down')
-					field.id = field.id - 1
-			} else if (field.id > changePositionField.id) {
-				if (direction === 'up')
-					field.id = field.id + 1
-			} else {
-				if (direction === 'down')
-					field.id = field.id - 1
-			}
+		const index = this.entity.fields.findIndex(field => field.id === changePositionField.id);
+
+		if (index === -1) return;
+
+		if (direction === 'up' && index > 0) {
+			[this.entity.fields[index - 1], this.entity.fields[index]] = [this.entity.fields[index], this.entity.fields[index - 1]];
+		} else if (direction === 'down' && index < this.entity.fields.length - 1) {
+			[this.entity.fields[index + 1], this.entity.fields[index]] = [this.entity.fields[index], this.entity.fields[index + 1]];
+		}
+
+		this.entity.fields.forEach((field, idx) => {
+			field.id = idx;
 			this.renderField(wrapper, field)
-		})
+		});
 	}
 
 	private renderField(wrapper: HTMLElement, newField: TField) {
-		const typeContainer = wrapper.createDiv({ cls: "field-group-wrapper" });
+		const fieldWrapperContainer = wrapper.createDiv({ cls: 'flex' });
+
+		const fieldOrderContainer = fieldWrapperContainer.createDiv({ cls: 'my-vertical-button-wrapper' })
+		const btnUp = fieldOrderContainer.createEl("button");
+		setIcon(btnUp, 'chevron-up')
+		btnUp.onclick = () => this.changeFieldOrder(wrapper, 'up', newField);
+
+		const btnDown = fieldOrderContainer.createEl("button");
+		setIcon(btnDown, 'chevron-down')
+		btnDown.onclick = () => this.changeFieldOrder(wrapper, 'down', newField);
+
+		const typeContainer = fieldWrapperContainer.createDiv({ cls: "field-group-wrapper" });
 		const deleteBtn = typeContainer.createDiv({ cls: "delete-icon" });
 		setIcon(deleteBtn, "trash");
 
 		deleteBtn.onclick = () => {
-			this.result.fields.remove(newField)
+			this.entity.fields.remove(newField)
 			typeContainer.remove()
 		};
+
+
 		new Setting(typeContainer)
-			.then((setting) => {
-				const controlEl = setting.controlEl;
-
-				const wrapper = controlEl.createDiv({ cls: 'my-vertical-button-wrapper' });
-
-				const btnUp = wrapper.createEl("button", { cls: 'mod-cta' });
-				setIcon(btnUp, 'plus')
-				btnUp.onclick = () => this.changeFieldOrder(wrapper, 'up', newField);
-
-				const btnDown = wrapper.createEl("button", { cls: 'mod-cta' });
-				setIcon(btnDown, 'minus')
-				btnDown.onclick = () => this.changeFieldOrder(wrapper, 'down', newField);
-			})
 			.setName("Field Name")
 			.addText(text => {
 				text.setValue(newField ? newField.label : '')
@@ -121,7 +129,6 @@ export class ModalForm extends Modal {
 					"boolean": "Boolean",
 					"date": "Date",
 					"select": "Select",
-					"multiselect": "Multiselect",
 					"url": "Url",
 					"file": "File",
 					"array": "Array",
@@ -129,7 +136,7 @@ export class ModalForm extends Modal {
 				}).setValue(newField ? newField.type : '')
 					.onChange((newType: TTypeField) => {
 						newField.type = newType
-						console.log('this.result.fields', this.result.fields)
+						console.log('this.entity.fields', this.entity.fields)
 
 						switch (newField.type) {
 							case 'select':
@@ -150,9 +157,9 @@ export class ModalForm extends Modal {
 
 	private async createSchema() {
 		const completeData: TEntity = {
-			...this.result,
-			entity: slugify(this.result.label || ''),
-			fields: this.result.fields
+			...this.entity,
+			entity: slugify(this.entity.label || ''),
+			fields: this.entity.fields
 		}
 
 		const validate = await this.validateEntitySchema(completeData)
@@ -161,7 +168,7 @@ export class ModalForm extends Modal {
 			this.onSubmit(true, completeData);
 			this.close();
 		} else {
-			if (this.result.fields.length <= 0) new Notice("Add at least one field")
+			if (this.entity.fields.length <= 0) new Notice("Add at least one field")
 			else
 				new Notice(`Fill all the fields! ${validate.missingFields}`)
 		}
@@ -271,7 +278,7 @@ export class ModalForm extends Modal {
 			});
 	}
 
-	private renderMarkdown(newField: TMarkdownField, wrapperContainer: HTMLDivElement) {
+	private renderMarkdown(newField: TFileField, wrapperContainer: HTMLDivElement) {
 		const wrapper = wrapperContainer.createDiv({ cls: 'flex-container' })
 		newField.prefixType = 'no'
 		newField.prefix = ''
@@ -283,12 +290,12 @@ export class ModalForm extends Modal {
 					.setTooltip("Update Fields")
 					.onClick(() => {
 						container.empty()
-						generateBaseOnDropdown(this.result.fields, container, newField)
+						generateBaseOnDropdown(this.entity.fields, container, newField)
 					})
 			})
 
 		const container = wrapper.createDiv()
-		function generateBaseOnDropdown(fields: Array<TField>, container: HTMLDivElement, newField: TMarkdownField) {
+		function generateBaseOnDropdown(fields: Array<TField>, container: HTMLDivElement, newField: TFileField) {
 			const prefixContainer = container.createDiv({ cls: 'flex-container' })
 			const hasPrefixSetting = new Setting(prefixContainer)
 			const mdPrefixSettingContainer = prefixContainer.createDiv()
@@ -314,7 +321,7 @@ export class ModalForm extends Modal {
 					})
 			)
 		}
-		generateBaseOnDropdown(this.result.fields, container, newField)
+		generateBaseOnDropdown(this.entity.fields, container, newField)
 	}
 }
 

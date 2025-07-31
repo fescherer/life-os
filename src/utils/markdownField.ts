@@ -1,7 +1,7 @@
 import { App, normalizePath, TAbstractFile, TFile } from "obsidian"
-import { TEntity, TMarkdownField } from "src/types/field"
+import { TEntity, TFileField } from "src/types/field"
 
-export function getMarkdownFieldName(field: TMarkdownField, entitySchema: TEntity, dataId: string): string {
+export function getMarkdownFieldName(field: TFileField, entitySchema: TEntity, dataId: string): string {
     let prefix = ''
     if (field.prefixType == 'field') {
         const chosenField = entitySchema.fields.find(item => item.name == field.prefix)
@@ -15,7 +15,7 @@ export function getMarkdownFieldName(field: TMarkdownField, entitySchema: TEntit
     return `md/${prefix}${entitySchema.entity}-${dataId}.md`;
 }
 
-export async function getMarkdownFieldFile(app: App, field: TMarkdownField, entitySchema: TEntity, dataId: string): Promise<TAbstractFile | null> {
+export async function getMarkdownFieldFile(app: App, field: TFileField, entitySchema: TEntity, dataId: string): Promise<TAbstractFile | null> {
 
     const filePath = getMarkdownFieldName(field, entitySchema, dataId)
     let file = app.vault.getAbstractFileByPath(normalizePath(filePath));

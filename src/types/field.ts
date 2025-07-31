@@ -14,7 +14,7 @@ export type TBaseField = {
 }
 
 export interface TCommonField extends TBaseField {
-	type: 'string' | 'boolean' | 'date' | 'url' | 'file' | 'array'
+	type: 'string' | 'boolean' | 'date' | 'url' | 'array'
 }
 
 export interface TNumberField extends TBaseField {
@@ -29,8 +29,8 @@ export interface TSelectField extends TBaseField {
 
 export type TPrefixField = 'no' | 'field' | 'text'
 
-export interface TMarkdownField extends TBaseField {
-	type: 'markdown'
+export interface TFileField extends TBaseField {
+	type: 'markdown' | 'file'
 	prefixType: TPrefixField
 	prefix: string
 }
@@ -40,5 +40,5 @@ export type TOptionItem = {
 	title: string
 }
 
-export type TField = TCommonField | TNumberField | TSelectField | TMarkdownField
+export type TField = TCommonField | TNumberField | TSelectField | TFileField
 

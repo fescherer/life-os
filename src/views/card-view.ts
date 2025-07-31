@@ -1,11 +1,11 @@
 import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
+import { getMarkdownFilePath } from "src/modal/data/create-file";
 import { ModalDataForm } from "src/modal/data/data-modal";
-import { getMarkdownFilePath } from "src/modal/data/get-markdown-path";
 import { ModalForm } from "src/modal/form/modal";
 import { TDataItem } from "src/types/data";
-import { TEntity, TMarkdownField } from "src/types/field";
+import { TEntity, TFileField } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
-import { getEntityData, getEntitySchema, } from "src/utils/entity-util";
+import { getEntityData, getEntitySchema, updateEntityFolder, } from "src/utils/entity-util";
 import { getCurrentFolder } from "src/utils/folderName";
 import { updateMDFile } from "src/utils/markdown-manager";
 
@@ -77,7 +77,7 @@ export class CardView extends ItemView {
 
 						break;
 					case 'markdown':
-						this.renderMarkdown(contentEl, data, fieldName, entitySchema)
+						this.renderMarkdown(card, data, fieldName, entitySchema)
 						break;
 					default:
 						console.log('No item')
@@ -91,7 +91,7 @@ export class CardView extends ItemView {
 		// Clean up if needed
 	}
 
-	private renderPageHeader(contentEl: HTMLElement, title: string) {
+	private async renderPageHeader(contentEl: HTMLElement, title: string) {
 		contentEl.createEl("h2", { text: `Hello! You are seeing schema of ${title}` });
 
 		const btnAddNewData = contentEl.createEl("button", { cls: "icon-button" });
@@ -103,22 +103,17 @@ export class CardView extends ItemView {
 			new ModalDataForm(this.app).open();
 		}
 
-
+		const entitySchema = await getEntitySchema(this.app)
 		const btnEditEntitySchema = contentEl.createEl("button", { cls: "icon-button" });
 		const btnEditEntitySchemaIcon = btnEditEntitySchema.createSpan();
-		setIcon(btnEditEntitySchemaIcon, "plus");
+		setIcon(btnEditEntitySchemaIcon, "pencil");
 		btnEditEntitySchemaIcon.style.marginRight = "0.5em";
-		btnEditEntitySchema.createSpan({ text: "Add data" });
+		btnEditEntitySchema.createSpan({ text: "Edit Entity Schema" });
 		btnEditEntitySchema.onclick = () => {
 			new ModalForm(this.app, async (isValid, result) => {
 				console.log("Form data:", result);
-				if (isValid) {
-
-					//Fazer o update da entity
-					// await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-					// createEntityFolder(result as TEntity)
-				}
-			}).open();
+				if (isValid) updateEntityFolder(this.app, result)
+			}, entitySchema).open();
 		}
 	}
 
@@ -178,7 +173,7 @@ export class CardView extends ItemView {
 		link.onClickEvent(async () => {
 			const field = entitySchema.fields.find(item => item.name === fieldName && item.type === 'markdown')
 			if (!field) return
-			const filePath = getMarkdownFilePath(field as TMarkdownField, entitySchema, dataItem[fieldName])
+			const filePath = getMarkdownFilePath(field as TFileField, entitySchema, dataItem[fieldName])
 
 			const file = this.app.vault.getAbstractFileByPath(filePath);
 			if (file instanceof TFile) {

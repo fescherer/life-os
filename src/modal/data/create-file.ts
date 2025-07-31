@@ -1,6 +1,6 @@
-import { TEntity, TMarkdownField } from "src/types/field"
+import { TEntity, TFileField } from "src/types/field"
 
-export function getMarkdownFilePath(field: TMarkdownField, entitySchema: TEntity, dataItemId: string): string {
+export function getMarkdownFilePath(field: TFileField | TFileField, entitySchema: TEntity, dataItemId: string): string {
     let prefix = ''
     if (field.prefixType == 'field') {
         const chosenField = entitySchema.fields.find(item => item.name == field.prefix)
@@ -11,5 +11,5 @@ export function getMarkdownFilePath(field: TMarkdownField, entitySchema: TEntity
         prefix = entitySchema.entity
     }
 
-    return `md/${prefix}-${dataItemId}.md`;
+    return `md/${prefix}-${dataItemId}-${field.id}.md`;
 }

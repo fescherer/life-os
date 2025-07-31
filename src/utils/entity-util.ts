@@ -1,5 +1,5 @@
 import { TEntity } from "src/types/field";
-import { readMDFile, writeMDFile } from "./markdown-manager";
+import { readMDFile, updateMDFile, writeMDFile } from "./markdown-manager";
 import { App } from "obsidian";
 import { createNewFolderInCurrentDir, getCurrentFolder, getFolderName } from "./folderName";
 import { TData } from "src/types/data";
@@ -20,6 +20,14 @@ export async function createEntityFolder(entity: TEntity) {
 	} as TData, null, 2)
 	await writeMDFile(this.app, folderName, 'data.md', jsonStringData)
 }
+
+export async function updateEntityFolder(app: App, entity: TEntity) {
+	const currentFolder = await getCurrentFolder(app)
+
+	const jsonString = JSON.stringify(entity, null, 2);
+	await updateMDFile(this.app.vault, `${currentFolder}/entity.md`, jsonString)
+}
+
 
 
 export async function getEntitySchema(app: App): Promise<TEntity> {

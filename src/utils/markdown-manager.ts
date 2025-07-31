@@ -3,9 +3,8 @@ import { App, normalizePath, TFile, Vault } from "obsidian";
 export function fileExists(app: App, path: string): boolean {
     const normalized = normalizePath(path);
     const file = app.vault.getAbstractFileByPath(normalized);
-    return file instanceof TFile;
+    return !!file;
 }
-
 
 export async function readMDFile(vault: Vault, filePath: string): Promise<unknown | null> {
     const file = vault.getAbstractFileByPath(normalizePath(filePath));

@@ -1,11 +1,11 @@
 import { Modal, App, Setting, Notice, TFile, TAbstractFile, TFolder } from "obsidian";
 import { TData, TDataItem } from "src/types/data";
-import { TBaseField, TCommonField, TMarkdownField, TNumberField, TSelectField } from "src/types/field";
+import { TBaseField, TCommonField, TEntity, TFileField, TNumberField, TSelectField } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema } from "src/utils/entity-util";
 import { getCurrentFolder } from "src/utils/folderName";
 import { fileExists, updateMDFile } from "src/utils/markdown-manager";
-import { getMarkdownFilePath } from "./get-markdown-path";
+import { getMarkdownFilePath } from "./create-file";
 
 export class ModalDataForm extends Modal {
 	dataItem: TDataItem
@@ -13,6 +13,8 @@ export class ModalDataForm extends Modal {
 	isSubmited: boolean
 	entityCountID: number;
 	defaultData: TDataItem | undefined
+	title: string
+	buttonText: string
 
 	constructor(app: App, defaultData?: TDataItem) {
 		super(app);
@@ -25,14 +27,15 @@ export class ModalDataForm extends Modal {
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		}
+
+		this.title = defaultData ? `Edit ${this.dataItem.label}` : 'Create new Data'
+		this.buttonText = defaultData ? `Edit data for ${this.dataItem.label}` : "Create"
 	}
 
 	async onOpen() {
 		const { contentEl } = this;
 
 		const currentFolder = await getCurrentFolder(this.app)
-		console.log(currentFolder)
-		await this.generateID()
 		const file = fileExists(this.app, `${currentFolder}/entity.md`)
 		if (!file) {
 			contentEl.createEl("h2", { text: "Entity Schema not found!" });
@@ -43,10 +46,10 @@ export class ModalDataForm extends Modal {
 					btn.setButtonText('Ok').onClick(() => this.close())
 				})
 		} else {
-
+			await this.generateID()
 			const entitySchema = await getEntitySchema(this.app)
 
-			const dialogTitle = this.isUpdate ? 'Edit' : 'Create'
+			const dialogTitle = this.isUpdate ? '' : 'Create'
 			contentEl.createEl("h2", { text: `${dialogTitle} data for ${entitySchema.label}` });
 
 			entitySchema.fields.map(async (field) => {
@@ -93,20 +96,21 @@ export class ModalDataForm extends Modal {
 		if (!this.isSubmited) {
 			new Notice("You close before saving. Nothing was created");
 
-			const entitySchema = await getEntitySchema(this.app)
-			entitySchema.fields.map(async (field) => {
-				if (field.type === 'file') {
-					const fileName = this.dataItem[field.name]
-					const file = this.app.vault.getAbstractFileByPath(`files/${fileName}`);
+			const currentFolder = await getCurrentFolder(this.app)
+			const file = fileExists(this.app, `${currentFolder}/entity.md`)
+			if (file) {
+				const entitySchema = await getEntitySchema(this.app)
+				entitySchema.fields.map(async (field) => {
+					if (field.type === 'file') {
+						const fileName = this.dataItem[field.name]
+						const file = this.app.vault.getAbstractFileByPath(`files/${fileName}`);
 
-					if (file instanceof TFile) {
-						await this.app.vault.delete(file);
+						if (file instanceof TFile) {
+							await this.app.vault.delete(file);
+						}
 					}
-				}
-			})
-
-
-
+				})
+			}
 			const { contentEl } = this;
 			contentEl.empty();
 		}
@@ -115,13 +119,14 @@ export class ModalDataForm extends Modal {
 	private async generateID() {
 		const entityData = await getEntityData(this.app);
 
-		if (this.isUpdate) {
+		if (this.defaultData) {
 			this.entityCountID = entityData.idCount
 		} else {
-			const newEntityDataIdCount = entityData.idCount++;
-
+			const newEntityDataIdCount = entityData.idCount + 1;
 			this.entityCountID = newEntityDataIdCount;
-			this.dataItem.id = newEntityDataIdCount.toString().padStart(2, '0');
+			console.log('Entity id', newEntityDataIdCount, this.entityCountID)
+
+			this.dataItem.id = newEntityDataIdCount.toString().padStart(3, '0');
 		}
 	}
 
@@ -143,9 +148,17 @@ export class ModalDataForm extends Modal {
 
 			const validate = await this.validateEntityData()
 			if (validate.isValid) {
-				this.createMarkdownFile()
+				if (!this.isUpdate) {
+					const entitySchema = await getEntitySchema(this.app)
+					const markdownFiles = entitySchema.fields.filter(item => item.type === 'markdown') as TFileField[]
+					markdownFiles.forEach(markdownfield => {
+						this.createMarkdownFile(markdownfield, entitySchema)
+					});
+				}
 
-				const completeData: TData = { ...entityData, data: [...entityData.data, this.dataItem] }
+
+				const completeData: TData = { ...entityData, idCount: this.entityCountID, data: [...entityData.data, this.dataItem] }
+				console.log(completeData)
 				const jsonString = JSON.stringify(completeData, null, 2);
 				if (currentFolder)
 					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
@@ -158,22 +171,18 @@ export class ModalDataForm extends Modal {
 		}
 	}
 
-	private async createMarkdownFile(): Promise<TAbstractFile | null> {
-		const entitySchema = await getEntitySchema(this.app)
-		const hasMarkdownFile = entitySchema.fields.find(item => item.type === 'markdown')
-		if (!hasMarkdownFile) return null
+	private async createMarkdownFile(markdownFile: TFileField, entitySchema: TEntity): Promise<TAbstractFile | null> {
+		if (!markdownFile) return null
 
-		const filePath = getMarkdownFilePath(hasMarkdownFile, entitySchema, this.dataItem.id)
-		console.log(filePath)
 		const currentPath = await getCurrentFolder(this.app)
-
 		const hasFolderCreated = this.app.vault.getFolderByPath(`${currentPath}/md`)
 		if (!hasFolderCreated) {
 			this.app.vault.createFolder(`${currentPath}/md`);
 		}
 
+		const filePath = getMarkdownFilePath(markdownFile, entitySchema, this.dataItem.id)
+
 		await this.app.vault.create(`${currentPath}/${filePath}`, `# MD File\n`);
-		console.log(`${currentPath}/${filePath}`)
 		const newFile = this.app.vault.getAbstractFileByPath(`${currentPath}/${filePath}`);
 		await this.app.workspace.getLeaf(true).openFile(newFile as TFile);
 		const file = this.app.vault.getAbstractFileByPath(`${currentPath}/${filePath}`);
@@ -296,7 +305,7 @@ export class ModalDataForm extends Modal {
 
 
 
-	private async renderMarkdown(field: TMarkdownField, container: HTMLElement) {
+	private async renderMarkdown(field: TFileField, container: HTMLElement) {
 		const entitySchema = await getEntitySchema(this.app)
 		const file = getMarkdownFilePath(field, entitySchema, this.dataItem.id)
 		this.dataItem[field.name] = file
@@ -308,7 +317,7 @@ export class ModalDataForm extends Modal {
 		})
 	}
 
-	private renderFile(field: TCommonField, container: HTMLElement) {
+	private renderFile(field: TFileField, container: HTMLElement) {
 		// Image name = field.name + field.id.<extensão original>
 		// When user select the image, the image is sent to /files folder
 		// If user canceled the creation, just search for image inside the files and delete
