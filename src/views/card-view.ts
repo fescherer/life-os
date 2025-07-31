@@ -1,6 +1,7 @@
 import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import { ModalDataForm } from "src/modal/data/data-modal";
 import { getMarkdownFilePath } from "src/modal/data/get-markdown-path";
+import { ModalForm } from "src/modal/form/modal";
 import { TDataItem } from "src/types/data";
 import { TEntity, TMarkdownField } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
@@ -94,12 +95,30 @@ export class CardView extends ItemView {
 		contentEl.createEl("h2", { text: `Hello! You are seeing schema of ${title}` });
 
 		const btnAddNewData = contentEl.createEl("button", { cls: "icon-button" });
-		const iconEl = btnAddNewData.createSpan();
-		setIcon(iconEl, "plus");
-		iconEl.style.marginRight = "0.5em";
+		const btnAddNewDataIcon = btnAddNewData.createSpan();
+		setIcon(btnAddNewDataIcon, "plus");
+		btnAddNewDataIcon.style.marginRight = "0.5em";
 		btnAddNewData.createSpan({ text: "Add data" });
 		btnAddNewData.onclick = () => {
 			new ModalDataForm(this.app).open();
+		}
+
+
+		const btnEditEntitySchema = contentEl.createEl("button", { cls: "icon-button" });
+		const btnEditEntitySchemaIcon = btnEditEntitySchema.createSpan();
+		setIcon(btnEditEntitySchemaIcon, "plus");
+		btnEditEntitySchemaIcon.style.marginRight = "0.5em";
+		btnEditEntitySchema.createSpan({ text: "Add data" });
+		btnEditEntitySchema.onclick = () => {
+			new ModalForm(this.app, async (isValid, result) => {
+				console.log("Form data:", result);
+				if (isValid) {
+
+					//Fazer o update da entity
+					// await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+					// createEntityFolder(result as TEntity)
+				}
+			}).open();
 		}
 	}
 
@@ -151,7 +170,7 @@ export class CardView extends ItemView {
 		}
 	}
 
-	//Problema, e se tiver dois fields markdown? O id sera o mesmo e vai dar pau
+	//TODO Problema, e se tiver dois fields markdown e files? O id sera o mesmo e vai dar pau
 	private renderMarkdown(contentEl: HTMLElement, dataItem: TDataItem, fieldName: string, entitySchema: TEntity) {
 		const link = contentEl.createEl('button')
 		setIcon(link, 'external-link')

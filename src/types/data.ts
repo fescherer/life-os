@@ -1,6 +1,7 @@
 export type TData = {
 	entity: string
 	label: string
+	idCount: number
 	data: Array<TDataItem>
 }
 

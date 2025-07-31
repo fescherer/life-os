@@ -7,6 +7,7 @@ export type TEntity = {
 export type TTypeField = 'string' | 'number' | 'boolean' | 'date' | 'select' | 'url' | 'file' | 'array' | 'markdown'
 
 export type TBaseField = {
+	id: number
 	name: string
 	label: string
 	type: TTypeField

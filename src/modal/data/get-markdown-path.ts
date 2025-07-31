@@ -4,12 +4,12 @@ export function getMarkdownFilePath(field: TMarkdownField, entitySchema: TEntity
     let prefix = ''
     if (field.prefixType == 'field') {
         const chosenField = entitySchema.fields.find(item => item.name == field.prefix)
-        prefix = chosenField?.name + '-'
+        prefix = chosenField?.name || ''
     } else if (field.prefixType == 'text') {
-        prefix = field.prefix + '-'
+        prefix = field.prefix
     } else {
-        prefix = ''
+        prefix = entitySchema.entity
     }
 
-    return `md/${prefix}${entitySchema.entity}-${dataItemId}.md`;
+    return `md/${prefix}-${dataItemId}.md`;
 }

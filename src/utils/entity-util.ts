@@ -15,8 +15,9 @@ export async function createEntityFolder(entity: TEntity) {
 	const jsonStringData = JSON.stringify({
 		entity: entity.entity,
 		label: entity.label,
+		idCount: 0,
 		data: []
-	}, null, 2)
+	} as TData, null, 2)
 	await writeMDFile(this.app, folderName, 'data.md', jsonStringData)
 }
 

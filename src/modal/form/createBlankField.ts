@@ -10,12 +10,29 @@ export function createBlankField(type: TTypeField): TField {
 				precision: 0,
 			} as Extract<TField, { type: 'number' }>
 		case 'select':
+		case 'multiselect':
 			return {
 				name: '',
 				label: '',
 				type,
 				options: [],
 			} as Extract<TField, { type: 'select' | 'multiselect' }>
+		case 'conditional':
+			return {
+				name: '',
+				label: '',
+				type,
+				basedOn: '',
+				cases: {}
+			} as Extract<TField, { type: 'conditional' }>
+		case 'markdown':
+			return {
+				name: '',
+				label: '',
+				type,
+				prefix: '',
+				prefixType: ''
+			} as Extract<TField, { type: 'markdown' }>
 		default:
 			return {
 				name: '',

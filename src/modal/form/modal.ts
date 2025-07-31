@@ -1,19 +1,17 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
 import { TEntity, TField, TMarkdownField, TNumberField, TPrefixField, TSelectField, TTypeField } from "src/types/field";
-import { createBlankField } from "./createBlankField";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: TEntity | null) => void;
 	result: TEntity
 	isSubmited: boolean
-	fields: Array<TField> = []
 
-	constructor(app: App, onSubmit: (isValid: boolean, result: TEntity) => void) {
+	constructor(app: App, onSubmit: (isValid: boolean, result: TEntity) => void, defaultData?: TEntity) {
 		super(app);
 		this.onSubmit = onSubmit;
 		this.isSubmited = false;
-		this.result = {
+		this.result = defaultData ? defaultData : {
 			entity: '',
 			label: '',
 			fields: []
@@ -28,10 +26,20 @@ export class ModalForm extends Modal {
 			.setName("Name")
 			.addText(text => text.onChange(val => (this.result.label = val)));
 
+
 		new Setting(contentEl)
 			.addButton(btn =>
 				btn.setButtonText("Add Field").setCta().onClick(() => {
-					this.createNewField(wrapper)
+					const newField = {
+						id: this.result.fields.length + 1,
+						name: '',
+						label: '',
+						type: 'string',
+					} as Extract<TField, { type: TTypeField }>
+
+					this.result.fields.push(newField)
+
+					this.renderField(wrapper, newField)
 				})
 			);
 
@@ -54,24 +62,56 @@ export class ModalForm extends Modal {
 		}
 	}
 
-	private createNewField(wrapper: HTMLElement) {
+	private changeFieldOrder(wrapper: HTMLElement, direction: 'up' | 'down', changePositionField: TField) {
+		wrapper.empty()
+		this.result.fields.map(field => {
+			if (field.id === changePositionField.id) {
+				if (direction === 'up')
+					field.id = field.id + 1
+				if (direction === 'down')
+					field.id = field.id - 1
+			} else if (field.id > changePositionField.id) {
+				if (direction === 'up')
+					field.id = field.id + 1
+			} else {
+				if (direction === 'down')
+					field.id = field.id - 1
+			}
+			this.renderField(wrapper, field)
+		})
+	}
+
+	private renderField(wrapper: HTMLElement, newField: TField) {
 		const typeContainer = wrapper.createDiv({ cls: "field-group-wrapper" });
 		const deleteBtn = typeContainer.createDiv({ cls: "delete-icon" });
 		setIcon(deleteBtn, "trash");
 
-		const newField = createBlankField('string')
-		this.fields.push(newField)
-
 		deleteBtn.onclick = () => {
-			this.fields.remove(newField)
+			this.result.fields.remove(newField)
 			typeContainer.remove()
 		};
 		new Setting(typeContainer)
+			.then((setting) => {
+				const controlEl = setting.controlEl;
+
+				const wrapper = controlEl.createDiv({ cls: 'my-vertical-button-wrapper' });
+
+				const btnUp = wrapper.createEl("button", { cls: 'mod-cta' });
+				setIcon(btnUp, 'plus')
+				btnUp.onclick = () => this.changeFieldOrder(wrapper, 'up', newField);
+
+				const btnDown = wrapper.createEl("button", { cls: 'mod-cta' });
+				setIcon(btnDown, 'minus')
+				btnDown.onclick = () => this.changeFieldOrder(wrapper, 'down', newField);
+			})
 			.setName("Field Name")
-			.addText(text => text.onChange(val => {
-				newField.label = val
-				newField.name = slugify(val)
-			}))
+			.addText(text => {
+				text.setValue(newField ? newField.label : '')
+				text.onChange(val => {
+					newField.label = val
+					newField.name = slugify(val)
+				})
+			})
 
 		new Setting(typeContainer).setName("Field Type")
 			.addDropdown(drop =>
@@ -86,32 +126,33 @@ export class ModalForm extends Modal {
 					"file": "File",
 					"array": "Array",
 					"markdown": "Markdown"
-				}).onChange((newType: TTypeField) => {
-					newField.type = newType
-					console.log('this.fields', this.fields)
+				}).setValue(newField ? newField.type : '')
+					.onChange((newType: TTypeField) => {
+						newField.type = newType
+						console.log('this.result.fields', this.result.fields)
 
-					switch (newField.type) {
-						case 'select':
-							this.renderSelect(newField, typeContainer)
-							break
-						case 'number':
-							this.renderNumber(newField, typeContainer)
-							break
-						case 'markdown':
-							this.renderMarkdown(newField, typeContainer)
-							break
-						default:
-							break
-					}
-				})
+						switch (newField.type) {
+							case 'select':
+								this.renderSelect(newField, typeContainer)
+								break
+							case 'number':
+								this.renderNumber(newField, typeContainer)
+								break
+							case 'markdown':
+								this.renderMarkdown(newField, typeContainer)
+								break
+							default:
+								break
+						}
+					})
 			);
 	}
 
 	private async createSchema() {
-		const completeData = {
+		const completeData: TEntity = {
 			...this.result,
 			entity: slugify(this.result.label || ''),
-			fields: this.fields
+			fields: this.result.fields
 		}
 
 		const validate = await this.validateEntitySchema(completeData)
@@ -120,7 +161,7 @@ export class ModalForm extends Modal {
 			this.onSubmit(true, completeData);
 			this.close();
 		} else {
-			if (this.fields.length <= 0) new Notice("Add at least one field")
+			if (this.result.fields.length <= 0) new Notice("Add at least one field")
 			else
 				new Notice(`Fill all the fields! ${validate.missingFields}`)
 		}
@@ -171,12 +212,25 @@ export class ModalForm extends Modal {
 	}
 
 
-	private renderSelect(field: TSelectField, container: HTMLDivElement,) {
-		field.options = []
+	private renderSelect(field: TSelectField, container: HTMLDivElement) {
+		if (!field.options) field.options = []
 
 		const optionsContainer = container.createDiv();
 		new Setting(container).addButton((btn) => {
-			let countOptions = 0
+			if (field.options.length > 0) {
+				field.options.map(option => {
+					const optionContainer = optionsContainer.createDiv();
+					new Setting(optionContainer).setName("Option name")
+						.addText(text => text.onChange(val => (option.title = val)))
+						.addButton((btn) => {
+							btn.setIcon('trash').onClick(() => {
+								field.options.map(item => item.id === option.id && field.options.remove(item))
+								optionContainer.remove()
+							})
+						});
+				})
+			}
+			let countOptions = field.options.length ? field.options.length : 0
 
 			btn.setIcon('plus').onClick(() => {
 				const optionContainer = optionsContainer.createDiv();
@@ -200,11 +254,13 @@ export class ModalForm extends Modal {
 	}
 
 	private renderNumber(field: TNumberField, container: HTMLElement) {
-		field.precision = 0
+		if (!field.precision) field.precision = 0
+
 		new Setting(container)
 			.setName("Decimal dot")
 			.addText(text => {
 				text.inputEl.type = "number";
+				text.setValue(field ? field.precision.toString() : '0')
 				text.onChange(val => {
 					try {
 						field.precision = parseInt(val);
@@ -227,7 +283,7 @@ export class ModalForm extends Modal {
 					.setTooltip("Update Fields")
 					.onClick(() => {
 						container.empty()
-						generateBaseOnDropdown(this.fields, container, newField)
+						generateBaseOnDropdown(this.result.fields, container, newField)
 					})
 			})
 
@@ -258,7 +314,7 @@ export class ModalForm extends Modal {
 					})
 			)
 		}
-		generateBaseOnDropdown(this.fields, container, newField)
+		generateBaseOnDropdown(this.result.fields, container, newField)
 	}
 }
 

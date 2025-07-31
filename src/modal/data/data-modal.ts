@@ -1,5 +1,5 @@
 import { Modal, App, Setting, Notice, TFile, TAbstractFile, TFolder } from "obsidian";
-import { TDataItem } from "src/types/data";
+import { TData, TDataItem } from "src/types/data";
 import { TBaseField, TCommonField, TMarkdownField, TNumberField, TSelectField } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema } from "src/utils/entity-util";
@@ -11,6 +11,7 @@ export class ModalDataForm extends Modal {
 	dataItem: TDataItem
 	isUpdate: boolean
 	isSubmited: boolean
+	entityCountID: number;
 	defaultData: TDataItem | undefined
 
 	constructor(app: App, defaultData?: TDataItem) {
@@ -18,8 +19,9 @@ export class ModalDataForm extends Modal {
 		this.isUpdate = defaultData ? true : false
 		this.defaultData = defaultData
 		this.isSubmited = false;
+		this.entityCountID = 0;
 		this.dataItem = defaultData ? defaultData : {
-			id: crypto.randomUUID(),
+			id: '', //crypto.randomUUID()
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		}
@@ -30,6 +32,7 @@ export class ModalDataForm extends Modal {
 
 		const currentFolder = await getCurrentFolder(this.app)
 		console.log(currentFolder)
+		await this.generateID()
 		const file = fileExists(this.app, `${currentFolder}/entity.md`)
 		if (!file) {
 			contentEl.createEl("h2", { text: "Entity Schema not found!" });
@@ -86,11 +89,39 @@ export class ModalDataForm extends Modal {
 		}
 	}
 
-	onClose() {
+	async onClose() {
 		if (!this.isSubmited) {
 			new Notice("You close before saving. Nothing was created");
+
+			const entitySchema = await getEntitySchema(this.app)
+			entitySchema.fields.map(async (field) => {
+				if (field.type === 'file') {
+					const fileName = this.dataItem[field.name]
+					const file = this.app.vault.getAbstractFileByPath(`files/${fileName}`);
+
+					if (file instanceof TFile) {
+						await this.app.vault.delete(file);
+					}
+				}
+			})
+
+
+
 			const { contentEl } = this;
 			contentEl.empty();
+		}
+	}
+
+	private async generateID() {
+		const entityData = await getEntityData(this.app);
+
+		if (this.isUpdate) {
+			this.entityCountID = entityData.idCount
+		} else {
+			const newEntityDataIdCount = entityData.idCount++;
+
+			this.entityCountID = newEntityDataIdCount;
+			this.dataItem.id = newEntityDataIdCount.toString().padStart(2, '0');
 		}
 	}
 
@@ -113,8 +144,9 @@ export class ModalDataForm extends Modal {
 			const validate = await this.validateEntityData()
 			if (validate.isValid) {
 				this.createMarkdownFile()
-				this.sendImages()
-				const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data, this.dataItem] }, null, 2);
+
+				const completeData: TData = { ...entityData, data: [...entityData.data, this.dataItem] }
+				const jsonString = JSON.stringify(completeData, null, 2);
 				if (currentFolder)
 					await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
 				this.isSubmited = true
@@ -126,8 +158,6 @@ export class ModalDataForm extends Modal {
 		}
 	}
 
-
-
 	private async createMarkdownFile(): Promise<TAbstractFile | null> {
 		const entitySchema = await getEntitySchema(this.app)
 		const hasMarkdownFile = entitySchema.fields.find(item => item.type === 'markdown')
@@ -136,7 +166,6 @@ export class ModalDataForm extends Modal {
 		const filePath = getMarkdownFilePath(hasMarkdownFile, entitySchema, this.dataItem.id)
 		console.log(filePath)
 		const currentPath = await getCurrentFolder(this.app)
-
 
 		const hasFolderCreated = this.app.vault.getFolderByPath(`${currentPath}/md`)
 		if (!hasFolderCreated) {
@@ -173,7 +202,7 @@ export class ModalDataForm extends Modal {
 	private renderString(field: TCommonField, contentEl: HTMLElement) {
 		new Setting(contentEl).setName(field.label)
 			.addTextArea(stringField => {
-				stringField.setValue(this.defaultData ? this.defaultData[field.name] : '')
+				stringField.setValue(this.dataItem[field.name] ? this.dataItem[field.name] : '')
 				stringField.onChange(val => (this.dataItem[field.name] = val))
 					.setPlaceholder('Type a text')
 				stringField.inputEl.style.resize = 'vertical'
@@ -184,7 +213,7 @@ export class ModalDataForm extends Modal {
 	private renderNumber(field: TNumberField, contentEl: HTMLElement) {
 		new Setting(contentEl).setName(field.label)
 			.addText(numberField => {
-				numberField.setValue(this.defaultData ? this.defaultData[field.name] : '')
+				numberField.setValue(this.dataItem[field.name] ? this.dataItem[field.name] : '')
 				numberField.inputEl.type = "number";
 				numberField.setPlaceholder('Type a number')
 				const precision = (field as TNumberField).precision;
@@ -199,7 +228,7 @@ export class ModalDataForm extends Modal {
 
 	private renderBoolean(field: TCommonField, contentEl: HTMLElement) {
 		new Setting(contentEl).setName(field.label).addToggle(booleanField => {
-			const defaultBoolean = this.defaultData ? this.defaultData[field.name] : ''
+			const defaultBoolean = this.dataItem[field.name] ? this.dataItem[field.name] : ''
 			booleanField.setValue(!!defaultBoolean)
 			booleanField.onChange(val => (this.dataItem[field.name] = val.toString()))
 		})
@@ -210,7 +239,7 @@ export class ModalDataForm extends Modal {
 			.setName(field.label)
 			.addText(dateField => {
 				const date = new Date()
-				const defaultDate = this.defaultData ? this.defaultData[field.name].split("T")[0] : date.toISOString().split("T")[0]
+				const defaultDate = this.dataItem[field.name] ? this.dataItem[field.name].split("T")[0] : date.toISOString().split("T")[0]
 
 				dateField.setValue(defaultDate)
 				dateField.inputEl.type = "date";
@@ -231,14 +260,14 @@ export class ModalDataForm extends Modal {
 			}, {})
 
 			dropdown
-				.setValue(this.defaultData ? this.defaultData[field.name] : options[Object.keys(options)[0]])
+				.setValue(this.dataItem[field.name] ? this.dataItem[field.name] : options[Object.keys(options)[0]])
 				.addOptions((options))
 				.onChange(val => (this.dataItem[field.name] = val))
 		})
 	}
 
 	private renderURL(field: TCommonField, contentEl: HTMLElement) {
-		const defaultURL = this.defaultData ? this.defaultData[field.name].split('|') : ''
+		const defaultURL = this.dataItem[field.name] ? this.dataItem[field.name].split('|') : ''
 
 		let urlPrefix = defaultURL[0] || 'https://'
 		let url = defaultURL[1] || ''
@@ -280,11 +309,19 @@ export class ModalDataForm extends Modal {
 	}
 
 	private renderFile(field: TCommonField, container: HTMLElement) {
+		// Image name = field.name + field.id.<extensão original>
+		// When user select the image, the image is sent to /files folder
+		// If user canceled the creation, just search for image inside the files and delete
+
 		new Setting(container)
 			.setName(field.label)
 			.addButton((btn) => {
-				const imagePathText = container.createDiv();
-				imagePathText.setText(this.defaultData ? this.defaultData[field.name] : '')
+				const imagePathContainer = container.createDiv();
+
+				let imageContainer: HTMLImageElement;
+				const imagePathText = imagePathContainer.createSpan(this.dataItem[field.name] ? this.dataItem[field.name] : '')
+				if (this.dataItem[field.name])
+					imageContainer = imagePathContainer.createEl('img', { attr: { width: '100px', height: '100px', src: `files/${this.dataItem[field.name]}` } })
 
 				btn.setButtonText("Choose File").onClick(() => {
 					const fileInput = document.createElement("input");
@@ -297,9 +334,10 @@ export class ModalDataForm extends Modal {
 						const file = fileInput.files[0];
 
 						const arrayBuffer = await file.arrayBuffer();
-						const fileName = file.name;
 						const currentFolder = await getCurrentFolder(this.app)
-						const targetPath = `${currentFolder}/temp`;
+						const targetPath = `${currentFolder}/files`;
+						const fileExtension = file.type.split('/')[1]
+						const fileName = `${field.name}_${field.id}.${fileExtension}`
 
 						try {
 							if (!this.app.vault.getAbstractFileByPath(targetPath)) {
@@ -308,6 +346,10 @@ export class ModalDataForm extends Modal {
 							await this.app.vault.createBinary(`${targetPath}/${fileName}`, arrayBuffer);
 
 							imagePathText.setText(fileName)
+							if (imageContainer)
+								imagePathContainer.setAttr('src', `files/${fileName}`)
+							else
+								imagePathContainer.createEl('img', { attr: { width: '100px', height: '100px', src: `files/${fileName}` } })
 							this.dataItem[field.name] = fileName
 						} catch (err) {
 							new Notice("Failed to import file.");
@@ -318,43 +360,9 @@ export class ModalDataForm extends Modal {
 			})
 	}
 
-	private async sendImages() {
-		const entitySchema = await getEntitySchema(this.app)
-		const hasTempFile = entitySchema.fields.find(item => item.type === 'file')
-		if (!hasTempFile) return null
-
-		const currentFolder = await getCurrentFolder(this.app)
-		const tempPath = `${currentFolder}/temp`;
-		const targetPath = `${currentFolder}/files`;
-
-		const vault = this.app.vault;
-
-		// Get source folder
-		const source = vault.getAbstractFileByPath(tempPath);
-		if (!(source instanceof TFolder)) {
-			console.warn(`Source folder "${tempPath}" not found.`);
-			return;
-		}
-
-		// Create target folder if it doesn't exist
-		let target = vault.getAbstractFileByPath(targetPath);
-		if (!(target instanceof TFolder)) {
-			await vault.createFolder(targetPath);
-			target = vault.getAbstractFileByPath(targetPath);
-		}
-
-		// Move each file inside source folder (not subfolders unless recursive)
-		for (const child of source.children) {
-			if (child instanceof TFile) {
-				const newPath = `${targetPath}/${child.name}`;
-				await vault.rename(child, newPath);
-			}
-		}
-	}
-
 	private renderArray(field: TBaseField, wrapper: HTMLElement) {
 		new Setting(wrapper).setName(field.label).setDesc('Use comma (,) to separate itens')
-			.addText(text => text.setValue(this.defaultData ? this.defaultData[field.name] : '').onChange(val => {
+			.addText(text => text.setValue(this.dataItem[field.name] ? this.dataItem[field.name] : '').onChange(val => {
 				this.dataItem[field.name] = val
 
 				const data = val.split(',')

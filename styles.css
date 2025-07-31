@@ -65,3 +65,17 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--color-base-10);
 	border: 1px solid var(--color-base-30);
 }
+
+.my-vertical-button-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	align-items: center;
+	justify-content: center;
+}
+
+.my-vertical-button-wrapper button {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+}
