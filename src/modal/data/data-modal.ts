@@ -348,6 +348,15 @@ export class ModalDataForm extends Modal {
 						const fileExtension = file.type.split('/')[1]
 						const fileName = `${field.name}_${field.id}.${fileExtension}`
 
+
+						// const file = this.app.vault.getAbstractFileByPath("images/photo.png");
+						// if (file && file instanceof TFile) {
+						//   const path = this.app.vault.getResourcePath(file);
+						//   const img = document.createElement("img");
+						//   img.src = path;
+						//   containerEl.appendChild(img);
+						// }
+
 						try {
 							if (!this.app.vault.getAbstractFileByPath(targetPath)) {
 								await this.app.vault.createFolder(targetPath);

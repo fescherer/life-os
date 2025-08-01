@@ -110,6 +110,7 @@ export class CardView extends ItemView {
 		btnEditEntitySchemaIcon.style.marginRight = "0.5em";
 		btnEditEntitySchema.createSpan({ text: "Edit Entity Schema" });
 		btnEditEntitySchema.onclick = () => {
+			// Editing entity brings a lot of problems, like, what I am gonna do with the camps that are changed? I am gonna delete those?
 			new ModalForm(this.app, async (isValid, result) => {
 				console.log("Form data:", result);
 				if (isValid) updateEntityFolder(this.app, result)
