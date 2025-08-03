@@ -326,7 +326,7 @@ export class ModalDataForm extends Modal {
 			.setName(field.label)
 			.addButton((btn) => {
 				const imagePathContainer = container.createDiv();
-
+				console.log('field', field)
 				let imageContainer: HTMLImageElement;
 				const imagePathText = imagePathContainer.createSpan(this.dataItem[field.name] ? this.dataItem[field.name] : '')
 				if (this.dataItem[field.name])
