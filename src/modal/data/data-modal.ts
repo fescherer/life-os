@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice, TFile, TAbstractFile, TFolder } from "obsidian";
+import { Modal, App, Setting, Notice, TFile, TAbstractFile, } from "obsidian";
 import { TData, TDataItem } from "src/types/data";
 import { TBaseField, TCommonField, TEntity, TFileField, TNumberField, TSelectField } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
@@ -102,11 +102,12 @@ export class ModalDataForm extends Modal {
 				const entitySchema = await getEntitySchema(this.app)
 				entitySchema.fields.map(async (field) => {
 					if (field.type === 'file') {
-						const fileName = this.dataItem[field.name]
-						const file = this.app.vault.getAbstractFileByPath(`files/${fileName}`);
 
-						if (file instanceof TFile) {
-							await this.app.vault.delete(file);
+						const fileName = this.dataItem[field.name]
+						const foundFile = this.app.vault.getAbstractFileByPath(`${currentFolder}/files/${fileName}`);
+
+						if (foundFile instanceof TFile) {
+							await this.app.vault.delete(foundFile);
 						}
 					}
 				})
