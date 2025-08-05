@@ -48,7 +48,7 @@ export class CardView extends ItemView {
 		entityData.data.map(async (data, index, allData) => {
 			console.log("data: ", data, index, allData)
 			const card = cardContainer.createDiv({ cls: "card" });
-			await this.renderCardHeader(card, data, entitySchema, index)
+			await this.renderCardHeader(card, data, entitySchema)
 
 			this.addContextMenu(card, data)
 
@@ -102,6 +102,15 @@ export class CardView extends ItemView {
 
 		const btnHeaderContainer = contentEl.createDiv({ cls: 'btn-container' })
 
+		const updateRenderView = btnHeaderContainer.createEl("button", { cls: "icon-button" });
+		const updateRenderViewIcon = updateRenderView.createSpan();
+		setIcon(updateRenderViewIcon, "update");
+		updateRenderViewIcon.style.marginRight = "0.5em";
+		updateRenderView.createSpan({ text: "Update View" });
+		updateRenderView.onclick = () => {
+			this.render()
+		}
+
 		const btnAddNewData = btnHeaderContainer.createEl("button", { cls: "icon-button" });
 		const btnAddNewDataIcon = btnAddNewData.createSpan();
 		setIcon(btnAddNewDataIcon, "plus");
@@ -128,6 +137,8 @@ export class CardView extends ItemView {
 
 	private async addContextMenu(card: HTMLElement, data: TDataItem) {
 		card.addEventListener("contextmenu", (event) => {
+			card.classList.add('card-selected')
+
 			event.preventDefault();
 			const menu = new Menu();
 			menu.addItem((item) =>
@@ -143,6 +154,24 @@ export class CardView extends ItemView {
 						async () => {
 							const currentFolder = await getCurrentFolder(this.app)
 							const entityData = await getEntityData(this.app)
+							const entitySchema = await getEntitySchema(this.app)
+
+							entitySchema.fields.map(async (field) => {
+								if (field.type === 'file') {
+									const foundFile = this.app.vault.getAbstractFileByPath(`${currentFolder}/files/${data[field.name]}`);
+
+									if (foundFile instanceof TFile) {
+										await this.app.vault.delete(foundFile);
+									}
+								}
+								if (field.type === 'markdown') {
+									const foundFileMD = this.app.vault.getAbstractFileByPath(`${currentFolder}/${data[field.name]}`);
+
+									if (foundFileMD instanceof TFile) {
+										await this.app.vault.delete(foundFileMD);
+									}
+								}
+							})
 
 							const newData = entityData.data.filter((item) => item.id !== data.id)
 							const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
@@ -158,10 +187,17 @@ export class CardView extends ItemView {
 			);
 
 			menu.showAtPosition({ x: event.pageX, y: event.pageY });
+
+			// Add temporary listener to remove the class
+			const removeClass = () => {
+				card.classList.remove("card-selected");
+				window.removeEventListener("pointerdown", removeClass, true);
+			};
+			window.addEventListener("pointerdown", removeClass, true);
 		});
 	}
 
-	private async renderCardHeader(card: HTMLElement, data: TDataItem, entitySchema: TEntity, index: number) {
+	private async renderCardHeader(card: HTMLElement, data: TDataItem, entitySchema: TEntity) {
 		// const btnContainer = card.createDiv({ cls: "btn-container" })
 		// btnContainer.createEl("span", { text: `Field Index: ${index.toString()}` });
 
@@ -200,7 +236,7 @@ export class CardView extends ItemView {
 		// 	imageContainer.appendChild(img);
 		// }
 
-
+		card.createEl("span", { text: data.name });
 		const imageField = entitySchema.fields.find((field) => field.type == 'file')
 		if (imageField) {
 			// TODO Make img-cover style

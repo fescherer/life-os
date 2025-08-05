@@ -59,6 +59,10 @@ If your plugin does not need CSS, delete this file.
 	gap: 1rem;
 }
 
+.card-selected {
+	border: 1px solid var(--interactive-accent) !important;
+}
+
 .flex-container {
 	display: flex;
 	justify-content: space-between;

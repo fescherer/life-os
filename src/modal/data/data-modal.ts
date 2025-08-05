@@ -24,6 +24,7 @@ export class ModalDataForm extends Modal {
 		this.entityCountID = 0;
 		this.dataItem = defaultData ? defaultData : {
 			id: '', //crypto.randomUUID()
+			name: '',
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		}
@@ -49,8 +50,17 @@ export class ModalDataForm extends Modal {
 			await this.generateID()
 			const entitySchema = await getEntitySchema(this.app)
 
+
+
 			const dialogTitle = this.isUpdate ? '' : 'Create'
 			contentEl.createEl("h2", { text: `${dialogTitle} data for ${entitySchema.label}` });
+
+			new Setting(contentEl)
+				.setName("Data Name")
+				.addText(text => {
+					text.setValue(this.dataItem.name)
+					text.onChange(val => (this.dataItem.name = val))
+				});
 
 			entitySchema.fields.map(async (field) => {
 				switch (field.type) {
@@ -102,7 +112,6 @@ export class ModalDataForm extends Modal {
 				const entitySchema = await getEntitySchema(this.app)
 				entitySchema.fields.map(async (field) => {
 					if (field.type === 'file') {
-
 						const fileName = this.dataItem[field.name]
 						const foundFile = this.app.vault.getAbstractFileByPath(`${currentFolder}/files/${fileName}`);
 
