@@ -16,43 +16,47 @@ export async function RenderData(app: App, contentEl: HTMLElement, dataItem: TDa
 		.setName("Data Name")
 		.addText(text => {
 			text.setValue(dataItem.name)
-			text.onChange(val => (dataItem.name = val))
+			text.onChange(val => {
+				dataItem.name = val
+				// renderFields(app, dataItem, entitySchema, fieldContainer)
+			})
 		});
 
+	const fieldContainer = contentEl.createDiv()
 	entitySchema.fields.map(async (field) => {
 		switch (field.type) {
 			case 'string':
-				// 	renderString(field, contentEl)
+				// 	renderString(field, fieldContainer)
 				break;
 			// case 'number':
-			// 	RenderNumberData(field, contentEl)
+			// 	RenderNumberData(field, fieldContainer)
 			// 	break;
 			// case 'boolean':
-			// 	renderBoolean(field, contentEl)
+			// 	renderBoolean(field, fieldContainer)
 			// 	break;
 			// case 'date':
-			// 	renderDate(field, contentEl)
+			// 	renderDate(field, fieldContainer)
 			// 	break;
 			// case 'select':
-			// 	renderSelect(field, contentEl)
+			// 	renderSelect(field, fieldContainer)
 			// 	break;
 			// case 'url':
-			// 	renderURL(field, contentEl)
+			// 	renderURL(field, fieldContainer)
 			// 	break;
 			case 'file':
-				renderFile(app, dataItem, field, contentEl)
+				renderFile(app, dataItem, field, fieldContainer)
 				break;
 			// case 'array':
-			// 	renderArray(field, contentEl)
+			// 	renderArray(field, fieldContainer)
 			// 	break;
 			case 'markdown':
-				renderMarkdown(app, dataItem, field, contentEl)
+				await renderMarkdown(app, dataItem, field, fieldContainer)
 				break;
 		}
 	})
+
 	new Setting(contentEl).addButton(btn => {
 		btn.setButtonText('verify').onClick(async () => {
-			console.log("Form data:", dataItem);
 			await createData(app, dataItem, entityCountId, isSubmited, defaultData)
 		})
 	})
@@ -60,11 +64,12 @@ export async function RenderData(app: App, contentEl: HTMLElement, dataItem: TDa
 
 async function renderMarkdown(app: App, dataItem: TDataItem, field: TFileField, container: HTMLElement) {
 	const entitySchema = await getEntitySchema(app)
-	const file = getMarkdownFilePath(field, entitySchema, dataItem.id)
+	const file = getMarkdownFilePath(field, entitySchema, dataItem)
 	dataItem[field.name] = file
+	const splitted = file.split('/')
 	new Setting(container).setName(field.label).then(setting => {
 		setting.controlEl.createEl("span", {
-			text: file,
+			text: `${splitted[0]}/<data-name>${splitted[1]}`,
 			cls: "setting-item-description"
 		});
 	})
@@ -79,7 +84,6 @@ function renderFile(app: App, dataItem: TDataItem, field: TFileField, container:
 		.setName(field.label)
 		.addButton((btn) => {
 			const imagePathContainer = container.createDiv();
-			console.log('field', field)
 			let imageContainer: HTMLImageElement;
 			const imagePathText = imagePathContainer.createSpan(dataItem[field.name] ? dataItem[field.name] : '')
 			if (dataItem[field.name])
@@ -107,7 +111,6 @@ function renderFile(app: App, dataItem: TDataItem, field: TFileField, container:
 						}
 						const fileImage = await app.vault.createBinary(`${targetPath}/${fileName}`, arrayBuffer);
 						const path = app.vault.getResourcePath(fileImage);
-						console.log(path)
 
 
 						imagePathText.setText(fileName)

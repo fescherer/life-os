@@ -10,7 +10,6 @@ export async function generateID(app: App, dataItem: TDataItem, entityCountID: n
 	} else {
 		const newEntityDataIdCount = entityData.idCount + 1;
 		entityCountID = newEntityDataIdCount;
-		console.log('Entity id', newEntityDataIdCount, entityCountID)
 
 		dataItem.id = newEntityDataIdCount.toString().padStart(3, '0');
 	}

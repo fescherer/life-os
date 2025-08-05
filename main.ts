@@ -8,7 +8,7 @@ import { CARD_VIEW_TYPE, CardView } from "src/views/card-view";
 
 export default class DynamicInterfacePlugin extends Plugin {
 	async onload() {
-		console.log("Loading Fennec Tales Studio's Plugin");
+		console.warn("Loading Fennec Tales Studio's Plugin");
 
 		this.registerView(
 			CARD_VIEW_TYPE,
@@ -25,7 +25,6 @@ export default class DynamicInterfacePlugin extends Plugin {
 
 		this.addRibbonIcon("table", "Create new schema", async () => {
 			new ModalForm(this.app, async (isValid, result) => {
-				console.log("Form data:", result);
 				if (isValid) {
 					createEntityFolder(result as TEntity)
 				}

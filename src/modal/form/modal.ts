@@ -136,7 +136,6 @@ export class ModalForm extends Modal {
 				}).setValue(newField ? newField.type : '')
 					.onChange((newType: TTypeField) => {
 						newField.type = newType
-						console.log('this.entity.fields', this.entity.fields)
 
 						switch (newField.type) {
 							case 'select':

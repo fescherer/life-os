@@ -46,7 +46,6 @@ export class CardView extends ItemView {
 		const cardContainer = contentEl.createDiv({ cls: 'card-container ' })
 
 		entityData.data.map(async (data, index, allData) => {
-			console.log("data: ", data, index, allData)
 			const card = cardContainer.createDiv({ cls: "card" });
 			await this.renderCardHeader(card, data, entitySchema)
 
@@ -90,7 +89,7 @@ export class CardView extends ItemView {
 						this.renderMarkdown(card, data, fieldName, entitySchema)
 						break;
 					default:
-						console.log('No item')
+						console.warn('No item')
 						break;
 				}
 			})
@@ -129,7 +128,6 @@ export class CardView extends ItemView {
 		btnEditEntitySchema.onclick = () => {
 			// Editing entity brings a lot of problems, like, what I am gonna do with the camps that are changed? I am gonna delete those?
 			new ModalForm(this.app, async (isValid, result) => {
-				console.log("Form data:", result);
 				if (isValid) updateEntityFolder(this.app, result)
 			}, entitySchema).open();
 		}
@@ -210,7 +208,6 @@ export class CardView extends ItemView {
 		// const btnRemove = btnContainer.createEl("button", { cls: "icon-button" });
 		// setIcon(btnRemove, "trash");
 		// btnRemove.onclick = () => {
-		// 	console.log('Remove card')
 		// 	new ConfirmDialog(this.app,
 		// 		'Do you want to remove this item?',
 		// 		async () => {
@@ -242,7 +239,6 @@ export class CardView extends ItemView {
 			// TODO Make img-cover style
 			const currentFolder = await getCurrentFolder(this.app)
 			const image = this.app.vault.getAbstractFileByPath(`${currentFolder}/files/${data[imageField.name]}`)
-			console.log(image, `${currentFolder}/files/${data[imageField.name]}`)
 			if (image && image instanceof TFile) {
 				const imagePath = this.app.vault.getResourcePath(image);
 				card.createEl('img', {

@@ -35,7 +35,6 @@ export async function createData(app: App, dataItem: TDataItem, entityCountID: n
 
 
 			const completeData: TData = { ...entityData, idCount: entityCountID, data: [...entityData.data, dataItem] }
-			console.log(completeData)
 			const jsonString = JSON.stringify(completeData, null, 2);
 			if (currentFolder)
 				await updateMDFile(app.vault, `${currentFolder}/data.md`, jsonString)
@@ -57,7 +56,7 @@ async function createMarkdownFile(app: App, dataItem: TDataItem, markdownFile: T
 		app.vault.createFolder(`${currentPath}/md`);
 	}
 
-	const filePath = getMarkdownFilePath(markdownFile, entitySchema, dataItem.id)
+	const filePath = getMarkdownFilePath(markdownFile, entitySchema, dataItem)
 
 	await app.vault.create(`${currentPath}/${filePath}`, `# MD File\n`);
 	const newFile = app.vault.getAbstractFileByPath(`${currentPath}/${filePath}`);
