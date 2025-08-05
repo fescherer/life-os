@@ -54,6 +54,9 @@ If your plugin does not need CSS, delete this file.
 	margin: 0.5em 0;
 	border-radius: 8px;
 	background-color: var(--background-primary-alt);
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
 }
 
 .flex-container {

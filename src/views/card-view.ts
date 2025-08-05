@@ -1,4 +1,4 @@
-import { ItemView, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import { getMarkdownFilePath } from "src/modal/data/create-file";
 import { ModalDataForm } from "src/modal/data/data-modal";
 import { ModalForm } from "src/modal/form/modal";
@@ -27,6 +27,14 @@ export class CardView extends ItemView {
 	}
 
 	async onOpen() {
+		this.render()
+	}
+
+	async onClose() {
+		// Clean up if needed
+	}
+
+	private async render() {
 		const { contentEl } = this;
 
 		const entitySchema = await getEntitySchema(this.app)
@@ -37,10 +45,12 @@ export class CardView extends ItemView {
 
 		const cardContainer = contentEl.createDiv({ cls: 'card-container ' })
 
-		entityData.data.map((data, index, allData) => {
+		entityData.data.map(async (data, index, allData) => {
 			console.log("data: ", data, index, allData)
 			const card = cardContainer.createDiv({ cls: "card" });
-			this.renderCardHeader(card, data, entitySchema, index)
+			await this.renderCardHeader(card, data, entitySchema, index)
+
+			this.addContextMenu(card, data)
 
 			Object.keys(data).map(fieldName => {
 				const fieldType = entitySchema.fields.find((field) => field.name === fieldName)
@@ -70,10 +80,10 @@ export class CardView extends ItemView {
 						break;
 					case 'array':
 						card.createEl("span", { text: `${fieldType.name}: ${data[fieldName]}` });
-						const arrayContainer = card.createDiv()
-						data[fieldName].toString().split(',').map(item => {
-							arrayContainer.createDiv({ text: item, cls: 'card-array-item' })
-						})
+						// const arrayContainer = card.createDiv()
+						// data[fieldName].toString().split(',').map(item => {
+						// 	arrayContainer.createDiv({ text: item, cls: 'card-array-item' })
+						// })
 
 						break;
 					case 'markdown':
@@ -87,14 +97,12 @@ export class CardView extends ItemView {
 		})
 	}
 
-	async onClose() {
-		// Clean up if needed
-	}
-
 	private async renderPageHeader(contentEl: HTMLElement, title: string) {
-		contentEl.createEl("h2", { text: `Hello! You are seeing schema of ${title}` });
+		contentEl.createEl("h2", { text: `Hello! You are seeing data of ${title} vault` });
 
-		const btnAddNewData = contentEl.createEl("button", { cls: "icon-button" });
+		const btnHeaderContainer = contentEl.createDiv({ cls: 'btn-container' })
+
+		const btnAddNewData = btnHeaderContainer.createEl("button", { cls: "icon-button" });
 		const btnAddNewDataIcon = btnAddNewData.createSpan();
 		setIcon(btnAddNewDataIcon, "plus");
 		btnAddNewDataIcon.style.marginRight = "0.5em";
@@ -104,7 +112,7 @@ export class CardView extends ItemView {
 		}
 
 		const entitySchema = await getEntitySchema(this.app)
-		const btnEditEntitySchema = contentEl.createEl("button", { cls: "icon-button" });
+		const btnEditEntitySchema = btnHeaderContainer.createEl("button", { cls: "icon-button" });
 		const btnEditEntitySchemaIcon = btnEditEntitySchema.createSpan();
 		setIcon(btnEditEntitySchemaIcon, "pencil");
 		btnEditEntitySchemaIcon.style.marginRight = "0.5em";
@@ -118,58 +126,113 @@ export class CardView extends ItemView {
 		}
 	}
 
-	private renderCardHeader(card: HTMLElement, data: TDataItem, entitySchema: TEntity, index: number) {
-		const btnContainer = card.createDiv({ cls: "btn-container" })
+	private async addContextMenu(card: HTMLElement, data: TDataItem) {
+		card.addEventListener("contextmenu", (event) => {
+			event.preventDefault();
+			const menu = new Menu();
+			menu.addItem((item) =>
+				item.setTitle("Edit").setIcon("pencil").onClick(() => {
+					new ModalDataForm(this.app, data).open();
+					this.render()
+				})
+			);
+			menu.addItem((item) =>
+				item.setTitle("Delete").setIcon("trash").onClick(() => {
+					new ConfirmDialog(this.app,
+						'Do you want to remove this item?',
+						async () => {
+							const currentFolder = await getCurrentFolder(this.app)
+							const entityData = await getEntityData(this.app)
 
-		const btnEdit = btnContainer.createEl("button", { cls: "icon-button" });
-		setIcon(btnEdit, "pencil");
-		btnEdit.onclick = () => {
-			new ModalDataForm(this.app, data).open();
-		}
+							const newData = entityData.data.filter((item) => item.id !== data.id)
+							const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
 
-		const btnRemove = btnContainer.createEl("button", { cls: "icon-button" });
-		setIcon(btnRemove, "trash");
-		btnRemove.onclick = () => {
-			console.log('Remove card')
-			new ConfirmDialog(this.app,
-				'Do you want to remove this item?',
-				async () => {
-					const currentFolder = await getCurrentFolder(this.app)
-					const entityData = await getEntityData(this.app)
+							if (currentFolder)
+								await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+							new Notice(`You have deleted an item from ${entityData.label}`)
+							this.render()
+						}, () => {
 
-					const newData = entityData.data.filter((item) => item.id !== data.id)
-					const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
+						}).open()
+				})
+			);
 
-					if (currentFolder)
-						await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-					new Notice(`You hve deleted an item from ${entityData.label}`)
-				}, () => {
+			menu.showAtPosition({ x: event.pageX, y: event.pageY });
+		});
+	}
 
-				}).open()
-			this.onOpen()
-		}
+	private async renderCardHeader(card: HTMLElement, data: TDataItem, entitySchema: TEntity, index: number) {
+		// const btnContainer = card.createDiv({ cls: "btn-container" })
+		// btnContainer.createEl("span", { text: `Field Index: ${index.toString()}` });
 
+		// const btnEdit = btnContainer.createEl("button", { cls: "icon-button" });
+		// setIcon(btnEdit, "pencil");
+		// btnEdit.onclick = () => {
+		// 	new ModalDataForm(this.app, data).open();
+		// }
 
-		card.createEl("h3", { text: `Field Index: ${index.toString()}` });
+		// const btnRemove = btnContainer.createEl("button", { cls: "icon-button" });
+		// setIcon(btnRemove, "trash");
+		// btnRemove.onclick = () => {
+		// 	console.log('Remove card')
+		// 	new ConfirmDialog(this.app,
+		// 		'Do you want to remove this item?',
+		// 		async () => {
+		// 			const currentFolder = await getCurrentFolder(this.app)
+		// 			const entityData = await getEntityData(this.app)
+
+		// 			const newData = entityData.data.filter((item) => item.id !== data.id)
+		// 			const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
+
+		// 			if (currentFolder)
+		// 				await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
+		// 			new Notice(`You hve deleted an item from ${entityData.label}`)
+		// 		}, () => {
+
+		// 		}).open()
+		// 	this.onOpen()
+		// }
+
+		// const fileImage = this.app.vault.getAbstractFileByPath(`${targetPath}/${fileName}`)
+		// if (fileImage && fileImage instanceof TFile) {
+		// 	const img = document.createElement("img");
+		// 	img.src = path;
+		// 	imageContainer.appendChild(img);
+		// }
+
 
 		const imageField = entitySchema.fields.find((field) => field.type == 'file')
 		if (imageField) {
 			// TODO Make img-cover style
-			card.createEl('img', {
-				cls: 'img-cover',
-				attr: {
-					src: data[imageField.name] as string,
-					width: "200",
-					loading: 'lazy'
-				}
-			})
+			const currentFolder = await getCurrentFolder(this.app)
+			const image = this.app.vault.getAbstractFileByPath(`${currentFolder}/files/${data[imageField.name]}`)
+			console.log(image, `${currentFolder}/files/${data[imageField.name]}`)
+			if (image && image instanceof TFile) {
+				const imagePath = this.app.vault.getResourcePath(image);
+				card.createEl('img', {
+					cls: 'img-cover',
+					attr: {
+						src: imagePath,
+						width: "200",
+						loading: 'lazy'
+					}
+				})
+			} else {
+				new Notice('An error has occured')
+			}
 		}
 	}
 
 	//TODO Problema, e se tiver dois fields markdown e files? O id sera o mesmo e vai dar pau
 	private renderMarkdown(contentEl: HTMLElement, dataItem: TDataItem, fieldName: string, entitySchema: TEntity) {
-		const link = contentEl.createEl('button')
-		setIcon(link, 'external-link')
+		const mdContainer = contentEl.createDiv({ cls: 'flex-container' })
+		mdContainer.createDiv({ text: `${fieldName}: ` })
+
+		const link = mdContainer.createEl("button", { cls: "icon-button" });
+		const linkIcon = link.createSpan();
+		setIcon(linkIcon, "external-link");
+		linkIcon.style.marginRight = "0.5em";
+		link.createSpan({ text: ".md" });
 
 		link.onClickEvent(async () => {
 			const field = entitySchema.fields.find(item => item.name === fieldName && item.type === 'markdown')

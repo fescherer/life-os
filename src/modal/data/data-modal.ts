@@ -349,27 +349,20 @@ export class ModalDataForm extends Modal {
 						const fileExtension = file.type.split('/')[1]
 						const fileName = `${field.name}_${field.id}.${fileExtension}`
 
-
-						// const file = 
-						// this.app.vault.getAbstractFileByPath("images/photo.png");
-						// if (file && file instanceof TFile) {
-						//   const path = this.app.vault.getResourcePath(file);
-						//   const img = document.createElement("img");
-						//   img.src = path;
-						//   containerEl.appendChild(img);
-						// }
-
 						try {
 							if (!this.app.vault.getAbstractFileByPath(targetPath)) {
 								await this.app.vault.createFolder(targetPath);
 							}
-							await this.app.vault.createBinary(`${targetPath}/${fileName}`, arrayBuffer);
+							const fileImage = await this.app.vault.createBinary(`${targetPath}/${fileName}`, arrayBuffer);
+							const path = this.app.vault.getResourcePath(fileImage);
+							console.log(path)
+
 
 							imagePathText.setText(fileName)
 							if (imageContainer)
-								imagePathContainer.setAttr('src', `files/${fileName}`)
+								imagePathContainer.setAttr('src', path)
 							else
-								imagePathContainer.createEl('img', { attr: { width: '100px', height: '100px', src: `files/${fileName}` } })
+								imagePathContainer.createEl('img', { attr: { width: '100px', height: '100px', src: path } })
 							this.dataItem[field.name] = fileName
 						} catch (err) {
 							new Notice("Failed to import file.");
