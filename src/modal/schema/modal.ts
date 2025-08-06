@@ -1,6 +1,6 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
-import { TEntity, TField, TFileField, TNumberField, TPrefixField, TSelectField, TTypeField } from "src/types/field";
+import { TCommonField, TEntity, TField, TNumberField, TPrefixField, TSelectField, TTypeField } from "src/types/field";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: TEntity | null) => void;
@@ -144,9 +144,6 @@ export class ModalForm extends Modal {
 							case 'number':
 								this.renderNumber(newField, typeContainer)
 								break
-							case 'markdown':
-								this.renderMarkdown(newField, typeContainer)
-								break
 							default:
 								break
 						}
@@ -174,7 +171,7 @@ export class ModalForm extends Modal {
 	}
 
 	private async validateEntitySchema(entity: TEntity) {
-		if (!!!entity || !entity.entity || !entity.label) return {
+		if (!entity || !entity.entity || !entity.label) return {
 			isValid: false,
 			missingFields: ['entity.name']
 		}
@@ -200,6 +197,7 @@ export class ModalForm extends Modal {
 			case 'date':
 			case 'url':
 			case 'file':
+			case 'markdown':
 			case 'array':
 				return true;
 
@@ -208,9 +206,6 @@ export class ModalForm extends Modal {
 
 			case 'select':
 				return Array.isArray(field.options) && field.options.length > 0;
-
-			case 'markdown':
-				return !!field.prefixType && field.prefix !== undefined && field.prefix !== null
 
 			default:
 				return false;
@@ -275,52 +270,6 @@ export class ModalForm extends Modal {
 					}
 				})
 			});
-	}
-
-	private renderMarkdown(newField: TFileField, wrapperContainer: HTMLDivElement) {
-		const wrapper = wrapperContainer.createDiv({ cls: 'flex-container' })
-		newField.prefixType = 'no'
-		newField.prefix = ''
-
-		new Setting(wrapper)
-			.setName("Has a prefix?").addExtraButton(cb => {
-
-				cb.setIcon("rotate-ccw")
-					.setTooltip("Update Fields")
-					.onClick(() => {
-						container.empty()
-						generateBaseOnDropdown(this.entity.fields, container, newField)
-					})
-			})
-
-		const container = wrapper.createDiv()
-		function generateBaseOnDropdown(fields: Array<TField>, container: HTMLDivElement, newField: TFileField) {
-			const prefixContainer = container.createDiv({ cls: 'flex-container' })
-			const hasPrefixSetting = new Setting(prefixContainer)
-			const mdPrefixSettingContainer = prefixContainer.createDiv()
-
-
-			hasPrefixSetting.addDropdown(drop =>
-				drop
-					.addOption("no", "No")
-					.addOption("field", "Field")
-					.addOption("text", "Text")
-					.onChange((prefixType: TPrefixField) => {
-						mdPrefixSettingContainer.empty()
-						newField.prefixType = prefixType
-						newField.prefix = ''
-						const mdPrefixSetting = new Setting(mdPrefixSettingContainer)
-						if (prefixType == 'text') mdPrefixSetting.addText(text => text.onChange((val) => newField.prefix = val))
-						else if (prefixType == 'field') {
-							const fieldsData = Object.fromEntries(fields.map(({ label, name }) => [label, name]))
-							newField.prefix = Object.keys(fieldsData)[0]
-							mdPrefixSetting.addDropdown(fieldDrop => fieldDrop.addOptions(fieldsData).onChange(val => newField.prefix = val))
-						}
-						else newField.prefix = ''
-					})
-			)
-		}
-		generateBaseOnDropdown(this.entity.fields, container, newField)
 	}
 }
 

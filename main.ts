@@ -1,9 +1,9 @@
 import { Plugin } from "obsidian";
-import { ModalDataForm } from "src/modal/data/data-modal";
-import { ModalForm } from "src/modal/form/modal";
+import { ModalDataForm } from "src/modal/data/modal";
+import { ModalForm } from "src/modal/schema/modal";
 import { TEntity } from "src/types/field";
 import { createEntityFolder } from "src/utils/entity-util";
-import { CARD_VIEW_TYPE, CardView } from "src/views/card-view";
+import { CARD_VIEW_TYPE, CardView } from "src/views/card/view";
 
 
 export default class DynamicInterfacePlugin extends Plugin {

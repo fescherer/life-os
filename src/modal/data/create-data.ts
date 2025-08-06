@@ -1,11 +1,11 @@
 import { App, Notice, TAbstractFile, TFile } from "obsidian";
 import { TData, TDataItem } from "src/types/data";
-import { TEntity, TFileField } from "src/types/field";
+import { TCommonField, TEntity } from "src/types/field";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema } from "src/utils/entity-util";
 import { getCurrentFolder } from "src/utils/folderName";
 import { updateMDFile } from "src/utils/markdown-manager";
-import { getMarkdownFilePath } from "./create-file";
+import { slugify } from "src/utils/slugify";
 
 export async function createData(app: App, dataItem: TDataItem, entityCountID: number, isSubmited: boolean, defautlData?: TDataItem) {
 	const currentFolder = await getCurrentFolder(app)
@@ -27,12 +27,11 @@ export async function createData(app: App, dataItem: TDataItem, entityCountID: n
 		if (validate.isValid) {
 			if (!defautlData) {
 				const entitySchema = await getEntitySchema(app)
-				const markdownFiles = entitySchema.fields.filter(item => item.type === 'markdown') as TFileField[]
+				const markdownFiles = entitySchema.fields.filter(item => item.type === 'markdown') as TCommonField[]
 				markdownFiles.forEach(markdownfield => {
 					createMarkdownFile(app, dataItem, markdownfield, entitySchema)
 				});
 			}
-
 
 			const completeData: TData = { ...entityData, idCount: entityCountID, data: [...entityData.data, dataItem] }
 			const jsonString = JSON.stringify(completeData, null, 2);
@@ -47,7 +46,7 @@ export async function createData(app: App, dataItem: TDataItem, entityCountID: n
 	}
 }
 
-async function createMarkdownFile(app: App, dataItem: TDataItem, markdownFile: TFileField, entitySchema: TEntity): Promise<TAbstractFile | null> {
+async function createMarkdownFile(app: App, dataItem: TDataItem, markdownFile: TCommonField, entitySchema: TEntity): Promise<TAbstractFile | null> {
 	if (!markdownFile) return null
 
 	const currentPath = await getCurrentFolder(app)
@@ -56,7 +55,7 @@ async function createMarkdownFile(app: App, dataItem: TDataItem, markdownFile: T
 		app.vault.createFolder(`${currentPath}/md`);
 	}
 
-	const filePath = getMarkdownFilePath(markdownFile, entitySchema, dataItem)
+	const filePath = `md/${slugify(dataItem.name)}-${dataItem.id}-${markdownFile.id}.md`
 
 	await app.vault.create(`${currentPath}/${filePath}`, `# MD File\n`);
 	const newFile = app.vault.getAbstractFileByPath(`${currentPath}/${filePath}`);
