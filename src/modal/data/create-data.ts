@@ -7,18 +7,24 @@ import { getCurrentFolder } from "src/utils/folderName";
 import { updateMDFile } from "src/utils/markdown-manager";
 import { slugify } from "src/utils/slugify";
 
-export async function createData(app: App, dataItem: TDataItem, entityCountID: number, isSubmited: boolean, defautlData?: TDataItem) {
+export async function createData(app: App, dataItem: TDataItem, entityCountID: number, isSubmited: boolean, close: () => void, defautlData?: TDataItem) {
 	const currentFolder = await getCurrentFolder(app)
 	const entityData = await getEntityData(app)
 	if (defautlData) {
 		dataItem.updatedAt = new Date().toISOString()
 		new ConfirmDialog(app, 'Are you sure you want to update this item?', async () => {
-			const jsonString = JSON.stringify({ ...entityData, data: [...entityData.data.filter(item => item.id != dataItem.id), dataItem] }, null, 2);
-			if (currentFolder)
+			const completeData = { ...entityData, data: [...entityData.data.filter(item => item.id != dataItem.id), dataItem] }
+			const jsonString = JSON.stringify(completeData, null, 2);
+
+			if (currentFolder) {
 				await updateMDFile(app.vault, `${currentFolder}/data.md`, jsonString)
+				isSubmited = true
+				close()
+			}
+
 		}, () => {
 			new Notice('You canceled the edit')
-		})
+		}).open()
 	} else {
 		dataItem.createdAt = new Date().toISOString()
 		dataItem.updatedAt = new Date().toISOString()
@@ -35,10 +41,11 @@ export async function createData(app: App, dataItem: TDataItem, entityCountID: n
 
 			const completeData: TData = { ...entityData, idCount: entityCountID, data: [...entityData.data, dataItem] }
 			const jsonString = JSON.stringify(completeData, null, 2);
-			if (currentFolder)
+			if (currentFolder) {
 				await updateMDFile(app.vault, `${currentFolder}/data.md`, jsonString)
-			isSubmited = true
-			// close()
+				isSubmited = true
+				close()
+			}
 		}
 		else {
 			new Notice(`Fill all the fields! ${validate.missingFields}`)

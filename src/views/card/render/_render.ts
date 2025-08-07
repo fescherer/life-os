@@ -5,15 +5,19 @@ import { renderMarkdownCardView } from "./render-markdown";
 import { App, Notice, TFile } from "obsidian";
 import { getCurrentFolder } from "src/utils/folderName";
 import { addContextMenu } from "src/views/add-context-menu";
+import { CardInteractionManager } from "../card-interation";
+import DynamicInterfacePlugin from "main";
+import { Card } from "../card";
 
-export async function renderCardView(app: App, entityData: TData, contentEl: HTMLElement, entitySchema: TEntity, render: () => Promise<void>) {
+export async function renderCardView(app: App, entityData: TData, contentEl: HTMLElement, entitySchema: TEntity, render: () => Promise<void>, plugin: DynamicInterfacePlugin) {
 	const cardContainer = contentEl.createDiv({ cls: 'card-container' })
+	plugin.interactionManager = new CardInteractionManager(this.app, cardContainer);
 
 	entityData.data.map(async (data, index, allData) => {
-		const card = cardContainer.createDiv({ cls: "card" });
-		await renderCardHeader(app, card, data, entitySchema)
+		const card = new Card(this.app, data, cardContainer, entitySchema)
+		card.render()
 
-		addContextMenu(app, card, data, render)
+		// addContextMenu(app, card, data, render)
 
 		// Object.keys(data).map(fieldName => {
 		// 	const fieldType = entitySchema.fields.find((field) => field.name === fieldName)
@@ -60,63 +64,4 @@ export async function renderCardView(app: App, entityData: TData, contentEl: HTM
 	})
 }
 
-async function renderCardHeader(app: App, card: HTMLElement, data: TDataItem, entitySchema: TEntity) {
-	// const btnContainer = card.createDiv({ cls: "btn-container" })
-	// btnContainer.createEl("span", { text: `Field Index: ${index.toString()}` });
 
-	// const btnEdit = btnContainer.createEl("button", { cls: "icon-button" });
-	// setIcon(btnEdit, "pencil");
-	// btnEdit.onclick = () => {
-	// 	new ModalDataForm(this.app, data).open();
-	// }
-
-	// const btnRemove = btnContainer.createEl("button", { cls: "icon-button" });
-	// setIcon(btnRemove, "trash");
-	// btnRemove.onclick = () => {
-	// 	new ConfirmDialog(this.app,
-	// 		'Do you want to remove this item?',
-	// 		async () => {
-	// 			const currentFolder = await getCurrentFolder(this.app)
-	// 			const entityData = await getEntityData(this.app)
-
-	// 			const newData = entityData.data.filter((item) => item.id !== data.id)
-	// 			const jsonString = JSON.stringify({ ...entityData, data: newData }, null, 2);
-
-	// 			if (currentFolder)
-	// 				await updateMDFile(this.app.vault, `${currentFolder}/data.md`, jsonString)
-	// 			new Notice(`You hve deleted an item from ${entityData.label}`)
-	// 		}, () => {
-
-	// 		}).open()
-	// 	this.onOpen()
-	// }
-
-	// const fileImage = this.app.vault.getAbstractFileByPath(`${targetPath}/${fileName}`)
-	// if (fileImage && fileImage instanceof TFile) {
-	// 	const img = document.createElement("img");
-	// 	img.src = path;
-	// 	imageContainer.appendChild(img);
-	// }
-
-	card.createEl("span", { text: data.name });
-	const imageField = entitySchema.fields.find((field) => field.type == 'file')
-	const imageContainer = card.createDiv({ cls: 'image-card-container' })
-	if (imageField) {
-		// TODO Make img-cover style
-		const currentFolder = await getCurrentFolder(app)
-		const image = app.vault.getAbstractFileByPath(`${currentFolder}/${data[imageField.name]}`)
-		if (image && image instanceof TFile) {
-			const imagePath = app.vault.getResourcePath(image);
-			imageContainer.createEl('img', {
-				cls: 'card-image',
-				attr: {
-					src: imagePath,
-					width: "200",
-					loading: 'lazy'
-				}
-			})
-		} else {
-			new Notice('An error has occured')
-		}
-	}
-}

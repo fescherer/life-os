@@ -12,11 +12,11 @@ import { RenderArrayData } from "./render-array";
 import { RenderMarkdownData } from "./render-markdown";
 import { RenderFileData } from "./render-file";
 
-export async function RenderData(app: App, contentEl: HTMLElement, dataItem: TDataItem, entityCountId: number, isSubmited: boolean, defaultData?: TDataItem) {
+export async function RenderData(app: App, contentEl: HTMLElement, dataItem: TDataItem, entityCountId: number, isSubmited: boolean, close: () => void, defaultData?: TDataItem) {
 	const entitySchema = await getEntitySchema(app)
 
-	const dialogTitle = defaultData ? '' : 'Create'
-	contentEl.createEl("h2", { text: `${dialogTitle} data for ${entitySchema.label}` });
+	const dialogTitle = defaultData ? 'Edit data' : 'Create data'
+	contentEl.createEl("h2", { text: `${dialogTitle} for ${entitySchema.label}` });
 
 	new Setting(contentEl)
 		.setName("Data Name")
@@ -32,28 +32,28 @@ export async function RenderData(app: App, contentEl: HTMLElement, dataItem: TDa
 	entitySchema.fields.map(async (field) => {
 		switch (field.type) {
 			case 'string':
-				RenderStringData(field, fieldContainer)
+				RenderStringData(field, dataItem, fieldContainer)
 				break;
 			case 'number':
-				RenderNumberData(field, fieldContainer)
+				RenderNumberData(field, dataItem, fieldContainer)
 				break;
 			case 'boolean':
-				RenderBooleanData(field, fieldContainer)
+				RenderBooleanData(field, dataItem, fieldContainer)
 				break;
 			case 'date':
-				RenderDateData(field, fieldContainer)
+				RenderDateData(field, dataItem, fieldContainer)
 				break;
 			case 'select':
-				RenderSelectData(field, fieldContainer)
+				RenderSelectData(field, dataItem, fieldContainer)
 				break;
 			case 'url':
-				RenderUrlData(field, fieldContainer)
+				RenderUrlData(field, dataItem, fieldContainer)
 				break;
 			case 'file':
 				RenderFileData(app, dataItem, field, fieldContainer)
 				break;
 			case 'array':
-				RenderArrayData(field, fieldContainer)
+				RenderArrayData(field, dataItem, fieldContainer)
 				break;
 			case 'markdown':
 				await RenderMarkdownData(app, dataItem, field, fieldContainer)
@@ -62,8 +62,8 @@ export async function RenderData(app: App, contentEl: HTMLElement, dataItem: TDa
 	})
 
 	new Setting(contentEl).addButton(btn => {
-		btn.setButtonText('verify').onClick(async () => {
-			await createData(app, dataItem, entityCountId, isSubmited, defaultData)
+		btn.setButtonText(dialogTitle).onClick(async () => {
+			await createData(app, dataItem, entityCountId, isSubmited, close, defaultData)
 		})
 	})
 }

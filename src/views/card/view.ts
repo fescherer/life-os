@@ -7,14 +7,21 @@ import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { getEntityData, getEntitySchema, updateEntityFolder, } from "src/utils/entity-util";
 import { renderCardView } from "./render/_render";
 import { slugify } from "src/utils/slugify";
+import DynamicInterfacePlugin from "main";
+import { CardInteractionManager } from "./card-interation";
 
 export const CARD_VIEW_TYPE = "card-view";
+
+
 
 // TODO make page dynamically updates
 
 export class CardView extends ItemView {
-	constructor(leaf: WorkspaceLeaf) {
+	plugin: DynamicInterfacePlugin;
+
+	constructor(leaf: WorkspaceLeaf, plugin: DynamicInterfacePlugin) {
 		super(leaf);
+		this.plugin = plugin;
 	}
 
 	getViewType() {
@@ -42,7 +49,8 @@ export class CardView extends ItemView {
 		contentEl.empty();
 		this.renderPageHeader(contentEl, entityData.label)
 
-		renderCardView(this.app, entityData, contentEl, entitySchema, this.render)
+		renderCardView(this.app, entityData, contentEl, entitySchema, this.render, this.plugin)
+
 	}
 
 	private async renderPageHeader(contentEl: HTMLElement, title: string) {

@@ -52,13 +52,14 @@ export class ModalDataForm extends Modal {
 			} else {
 				const newEntityDataIdCount = entityData.idCount + 1;
 				this.entityCountID = newEntityDataIdCount;
-
 				this.dataItem.id = newEntityDataIdCount.toString().padStart(3, '0');
-			} RenderData(this.app, contentEl, this.dataItem, this.entityCountID, this.isSubmited, this.defaultData)
+			}
+			RenderData(this.app, contentEl, this.dataItem, this.entityCountID, this.isSubmited, this.close.bind(this), this.defaultData)
 		}
 	}
 
 	async onClose() {
+		console.log('closing')
 		if (!this.isSubmited) {
 			new Notice("You close before saving. Nothing was created");
 

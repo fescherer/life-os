@@ -110,3 +110,96 @@ If your plugin does not need CSS, delete this file.
 	transform: translate(-50%, -50%);
 	object-fit: cover;
 }
+
+/* Root container */
+.data-modal {
+	padding: 1rem;
+}
+
+/* Header with buttons */
+.data-modal-header {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 1rem;
+}
+
+.data-modal-header button {
+	padding: 4px 12px;
+	font-size: var(--font-ui-small);
+}
+
+/* Responsive body layout */
+.data-modal-body {
+	display: flex;
+	flex-direction: row;
+	gap: 1rem;
+}
+
+.data-modal-left {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.data-modal-image {
+	max-width: 100%;
+	height: auto;
+	border-radius: var(--radius-s);
+}
+
+.data-modal-right {
+	flex: 2;
+	max-height: 300px;
+	overflow-y: auto;
+	border-left: 1px solid var(--background-modifier-border);
+	padding-left: 1rem;
+}
+
+/* Data rows */
+.data-row {
+	margin-bottom: 0.5rem;
+}
+
+.data-label {
+	font-weight: bold;
+	color: var(--text-muted);
+	margin-bottom: 0.2rem;
+}
+
+.data-value {
+	color: var(--text-normal);
+}
+
+/* Responsive stacking */
+@media (max-width: 600px) {
+	.data-modal-body {
+		flex-direction: column;
+	}
+
+	.data-modal-right {
+		border-left: none;
+		border-top: 1px solid var(--background-modifier-border);
+		padding-left: 0;
+		padding-top: 1rem;
+	}
+}
+
+.card-context-menu {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 5px;
+	box-shadow: var(--shadow-l);
+	padding: 6px 0;
+	width: 120px;
+}
+
+.card-context-menu .menu-item {
+	padding: 6px 12px;
+	cursor: pointer;
+}
+
+.card-context-menu .menu-item:hover {
+	background: var(--interactive-accent-hover);
+	color: var(--text-on-accent);
+}

@@ -1,6 +1,6 @@
 import { Modal, App, Setting, Notice, setIcon } from "obsidian";
 import { slugify } from "../../utils/slugify";
-import { TCommonField, TEntity, TField, TNumberField, TPrefixField, TSelectField, TTypeField } from "src/types/field";
+import { TEntity, TField, TNumberField, TSelectField, TTypeField } from "src/types/field";
 
 export class ModalForm extends Modal {
 	onSubmit: (isValid: boolean, result: TEntity | null) => void;
