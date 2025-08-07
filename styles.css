@@ -159,6 +159,8 @@ If your plugin does not need CSS, delete this file.
 /* Data rows */
 .data-row {
 	margin-bottom: 0.5rem;
+	border-bottom: 1px solid var(--background-secondary);
+	padding-bottom: 0.5rem;
 }
 
 .data-label {
