@@ -1,8 +1,6 @@
 import { Plugin } from "obsidian";
 import { ModalDataForm } from "src/modal/data/modal";
-import { ModalForm } from "src/modal/schema/modal";
-import { TEntity } from "src/types/field";
-import { createEntityFolder } from "src/utils/entity-util";
+import { ModalSchemaForm } from "src/modal/schema/modal";
 import { CardInteractionManager } from "src/views/card/card-interation";
 import { CARD_VIEW_TYPE, CardView } from "src/views/card/view";
 
@@ -27,11 +25,7 @@ export default class DynamicInterfacePlugin extends Plugin {
 		});
 
 		this.addRibbonIcon("table", "Create new schema", async () => {
-			new ModalForm(this.app, async (isValid, result) => {
-				if (isValid) {
-					createEntityFolder(result as TEntity)
-				}
-			}).open();
+			new ModalSchemaForm(this.app).open();
 		})
 
 		this.addRibbonIcon("newspaper", "Create new data block", () => {

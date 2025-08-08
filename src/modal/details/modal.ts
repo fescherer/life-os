@@ -1,9 +1,8 @@
 import { App, Modal, setIcon, TFile } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
-import { getEntitySchema } from "src/utils/entity-util";
+import { getEntitySchema } from "src/utils/entity-schema-manager";
 import { getCurrentFolder } from "src/utils/folderName";
-import { slugify } from "src/utils/slugify";
 
 export class DetailsModal extends Modal {
 	private data: TDataItem
@@ -33,12 +32,19 @@ export class DetailsModal extends Modal {
 
 		// === Left (Image) ===
 		const entitySchema = await getEntitySchema(this.app)
+		if (!entitySchema) return
 		const imageField = entitySchema.fields.find(item => item.type == 'file')
 		const left = container.createEl("div", { cls: "data-modal-left" });
 		if (imageField) {
 			const splitted = this.data[imageField.name].split('.')
-			if (['jpg', 'jpeg', 'webp', 'png'].contains(splitted[1]))
-				left.createEl("img", { attr: { src: this.data.imageUrl }, cls: "data-modal-image" });
+			if (['jpg', 'jpeg', 'webp', 'png'].contains(splitted[1])) {
+				const currentFolder = await getCurrentFolder(this.app)
+				const image = this.app.vault.getAbstractFileByPath(`${currentFolder}/${this.data[imageField.name]}`)
+				if (image && image instanceof TFile) {
+					const imagePath = this.app.vault.getResourcePath(image);
+					left.createEl("img", { attr: { src: imagePath }, cls: "data-modal-image" });
+				}
+			}
 		}
 
 		const right = container.createEl("div", { cls: "data-modal-right" });

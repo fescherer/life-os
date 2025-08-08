@@ -2,7 +2,7 @@ import { Setting } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 
-export function RenderStringData(field: TCommonField, dataItem: TDataItem, contentEl: HTMLElement) {
+export function renderStringData(field: TCommonField, dataItem: TDataItem, contentEl: HTMLElement) {
 	new Setting(contentEl).setName(field.label)
 		.addTextArea(stringField => {
 			stringField.setValue(dataItem[field.name] ? dataItem[field.name] : '')

@@ -1,9 +1,10 @@
 import { Modal, App, Setting, Notice, TFile } from "obsidian";
 import { TDataItem } from "src/types/data";
-import { getEntityData, getEntitySchema } from "src/utils/entity-util";
 import { getCurrentFolder } from "src/utils/folderName";
-import { fileExists } from "src/utils/markdown-manager";
-import { RenderData } from "./render/_render";
+import { renderData } from "./render/_render";
+import { getEntityData } from "src/utils/entity-data-manager";
+import { getFileByPath } from "src/utils/markdown-manager";
+import { getEntitySchema } from "src/utils/entity-schema-manager";
 
 export class ModalDataForm extends Modal {
 	dataItem: TDataItem
@@ -35,7 +36,7 @@ export class ModalDataForm extends Modal {
 		const { contentEl } = this;
 
 		const currentFolder = await getCurrentFolder(this.app)
-		const file = fileExists(this.app, `${currentFolder}/entity.md`)
+		const file = getFileByPath(this.app, `${currentFolder}/entity.md`)
 		if (!file) {
 			contentEl.createEl("h2", { text: "Entity Schema not found!" });
 			contentEl.createEl('p', { text: "Make sure you first create an entity schema before trying to create data" })
@@ -46,6 +47,7 @@ export class ModalDataForm extends Modal {
 				})
 		} else {
 			const entityData = await getEntityData(this.app);
+			if (!entityData) return;
 
 			if (this.defaultData) {
 				this.entityCountID = entityData.idCount
@@ -54,7 +56,7 @@ export class ModalDataForm extends Modal {
 				this.entityCountID = newEntityDataIdCount;
 				this.dataItem.id = newEntityDataIdCount.toString().padStart(3, '0');
 			}
-			RenderData(this.app, contentEl, this.dataItem, this.entityCountID, this.isSubmited, this.close.bind(this), this.defaultData)
+			renderData(this.app, contentEl, this.dataItem, this.isSubmited, this.close.bind(this), this.defaultData)
 		}
 	}
 
@@ -64,9 +66,10 @@ export class ModalDataForm extends Modal {
 			new Notice("You close before saving. Nothing was created");
 
 			const currentFolder = await getCurrentFolder(this.app)
-			const file = fileExists(this.app, `${currentFolder}/entity.md`)
+			const file = getFileByPath(this.app, `${currentFolder}/entity.md`)
 			if (file) {
 				const entitySchema = await getEntitySchema(this.app)
+				if (!entitySchema) return
 				entitySchema.fields.map(async (field) => {
 					if (field.type === 'file') {
 						const fileName = this.dataItem[field.name]

@@ -4,7 +4,7 @@ import { TCommonField } from "src/types/field";
 import { getCurrentFolder } from "src/utils/folderName";
 import { slugify } from "src/utils/slugify";
 
-export function RenderFileData(app: App, dataItem: TDataItem, field: TCommonField, container: HTMLElement) {
+export function renderFileData(app: App, dataItem: TDataItem, field: TCommonField, container: HTMLElement) {
 	// Image name = field.name + field.id.<extensão original>
 	// When user select the image, the image is sent to /files folder
 	// If user canceled the creation, just search for image inside the files and delete

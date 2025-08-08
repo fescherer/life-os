@@ -2,7 +2,7 @@ import { Setting } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 
-export function RenderUrlData(field: TCommonField, dataItem: TDataItem, contentEl: HTMLElement) {
+export function renderUrlData(field: TCommonField, dataItem: TDataItem, contentEl: HTMLElement) {
 	const defaultURL = dataItem[field.name] ? dataItem[field.name].split('|') : ''
 
 	let urlPrefix = defaultURL[0] || 'https://'

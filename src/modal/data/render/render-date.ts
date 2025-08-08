@@ -2,7 +2,7 @@ import { Setting } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 
-export function RenderDateData(field: TCommonField, dataItem: TDataItem, contentEl: HTMLElement) {
+export function renderDateData(field: TCommonField, dataItem: TDataItem, contentEl: HTMLElement) {
 	new Setting(contentEl)
 		.setName(field.label)
 		.addText(dateField => {

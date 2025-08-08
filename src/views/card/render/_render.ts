@@ -1,10 +1,9 @@
 import { TData, TDataItem } from "src/types/data";
 import { TEntity } from "src/types/field";
-import { getEntityData, getEntitySchema } from "src/utils/entity-util";
+import { getEntitySchema } from "src/utils/entity-util";
 import { renderMarkdownCardView } from "./render-markdown";
 import { App, Notice, TFile } from "obsidian";
 import { getCurrentFolder } from "src/utils/folderName";
-import { addContextMenu } from "src/views/add-context-menu";
 import { CardInteractionManager } from "../card-interation";
 import DynamicInterfacePlugin from "main";
 import { Card } from "../card";

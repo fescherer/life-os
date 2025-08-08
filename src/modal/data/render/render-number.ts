@@ -2,8 +2,9 @@ import { Setting } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TNumberField } from "src/types/field";
 
-export function RenderNumberData(field: TNumberField, dataItem: TDataItem, contentEl: HTMLElement) {
-	new Setting(contentEl).setName(field.label)
+export function renderNumberData(field: TNumberField, dataItem: TDataItem, contentEl: HTMLElement) {
+	new Setting(contentEl)
+		.setName(field.label)
 		.addText(numberField => {
 			numberField.setValue(dataItem[field.name] ? dataItem[field.name] : '')
 			numberField.inputEl.type = "number";

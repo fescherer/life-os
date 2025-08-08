@@ -1,18 +1,11 @@
-import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, setIcon, WorkspaceLeaf } from "obsidian";
 import { ModalDataForm } from "src/modal/data/modal";
-import { ModalForm } from "src/modal/schema/modal";
-import { TDataItem } from "src/types/data";
-import { TEntity } from "src/types/field";
-import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
-import { getEntityData, getEntitySchema, updateEntityFolder, } from "src/utils/entity-util";
 import { renderCardView } from "./render/_render";
-import { slugify } from "src/utils/slugify";
 import DynamicInterfacePlugin from "main";
-import { CardInteractionManager } from "./card-interation";
+import { getEntityData } from "src/utils/entity-data-manager";
+import { getEntitySchema } from "src/utils/entity-schema-manager";
 
 export const CARD_VIEW_TYPE = "card-view";
-
-
 
 // TODO make page dynamically updates
 
@@ -45,6 +38,7 @@ export class CardView extends ItemView {
 
 		const entitySchema = await getEntitySchema(this.app)
 		const entityData = await getEntityData(this.app)
+		if (!entityData || !entitySchema) return;
 
 		contentEl.empty();
 		this.renderPageHeader(contentEl, entityData.label)
@@ -76,7 +70,6 @@ export class CardView extends ItemView {
 			new ModalDataForm(this.app).open();
 		}
 
-		const entitySchema = await getEntitySchema(this.app)
 		const btnEditEntitySchema = btnHeaderContainer.createEl("button", { cls: "icon-button" });
 		const btnEditEntitySchemaIcon = btnEditEntitySchema.createSpan();
 		setIcon(btnEditEntitySchemaIcon, "pencil");
@@ -84,9 +77,9 @@ export class CardView extends ItemView {
 		btnEditEntitySchema.createSpan({ text: "Edit Entity Schema" });
 		btnEditEntitySchema.onclick = () => {
 			// Editing entity brings a lot of problems, like, what I am gonna do with the camps that are changed? I am gonna delete those?
-			new ModalForm(this.app, async (isValid, result) => {
-				if (isValid) updateEntityFolder(this.app, result)
-			}, entitySchema).open();
+			// new ModalForm(this.app, async (isValid, result) => {
+			// 	if (isValid) updateEntityFolder(this.app, result)
+			// }, entitySchema).open();
 		}
 	}
 }
