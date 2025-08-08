@@ -1,6 +1,6 @@
-import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { Modal, App, Setting, Notice, } from "obsidian";
 import { slugify } from "../../utils/slugify";
-import { TEntity, TField, TNumberField, TSelectField, TTypeField } from "src/types/field";
+import { TEntity, TField, TTypeField } from "src/types/field";
 import { createEntitySchema } from "src/utils/entity-schema-manager";
 import { renderField } from "./render/_render";
 

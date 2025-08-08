@@ -1,4 +1,4 @@
-import { App, Notice, Setting } from "obsidian";
+import { App, Notice, Setting, TFile } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 import { getCurrentFolder } from "src/utils/folderName";
@@ -11,12 +11,21 @@ export function renderFileData(app: App, dataItem: TDataItem, field: TCommonFiel
 
 	new Setting(container)
 		.setName(field.label)
-		.addButton((btn) => {
+		.addButton(async (btn) => {
 			const imagePathContainer = container.createDiv();
 			let imageContainer: HTMLImageElement;
 			const imagePathText = imagePathContainer.createSpan(dataItem[field.name] ? dataItem[field.name] : '')
-			if (dataItem[field.name])
-				imageContainer = imagePathContainer.createEl('img', { attr: { width: '100px', height: '100px', src: `files/${dataItem[field.name]}` } })
+			if (dataItem[field.name]) {
+				const splitted = dataItem[field.name].split('.')
+				if (['jpg', 'jpeg', 'webp', 'png'].contains(splitted[1])) {
+					const currentFolder = await getCurrentFolder(app)
+					const image = app.vault.getAbstractFileByPath(`${currentFolder}/${dataItem[field.name]}`)
+					if (image && image instanceof TFile) {
+						const imagePath = app.vault.getResourcePath(image);
+						imageContainer = imagePathContainer.createEl('img', { attr: { width: '100px', height: 'auto', src: imagePath } })
+					}
+				}
+			}
 
 			btn.setButtonText("Choose File").onClick(() => {
 				const fileInput = document.createElement("input");
