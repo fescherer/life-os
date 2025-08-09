@@ -22,7 +22,7 @@ export class ModalDataForm extends Modal {
 		this.isSubmited = false;
 		this.entityCountID = 0;
 		this.dataItem = defaultData ? defaultData : {
-			id: '', //crypto.randomUUID()
+			id: '',
 			name: '',
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
@@ -73,11 +73,9 @@ export class ModalDataForm extends Modal {
 				entitySchema.fields.map(async (field) => {
 					if (field.type === 'file') {
 						const fileName = this.dataItem[field.name]
-						const foundFile = this.app.vault.getAbstractFileByPath(`${currentFolder}/files/${fileName}`);
+						const file = getFileByPath(this.app, `${currentFolder}/files/${fileName}`)
 
-						if (foundFile instanceof TFile) {
-							await this.app.vault.delete(foundFile);
-						}
+						if (file) await this.app.vault.delete(file)
 					}
 				})
 			}

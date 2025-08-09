@@ -2,13 +2,10 @@ import { App, Notice, Setting, TFile } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 import { getCurrentFolder } from "src/utils/folderName";
+import { getFileByPath } from "src/utils/markdown-manager";
 import { slugify } from "src/utils/slugify";
 
 export function renderFileData(app: App, dataItem: TDataItem, field: TCommonField, container: HTMLElement) {
-	// Image name = field.name + field.id.<extensão original>
-	// When user select the image, the image is sent to /files folder
-	// If user canceled the creation, just search for image inside the files and delete
-
 	new Setting(container)
 		.setName(field.label)
 		.addButton(async (btn) => {
@@ -19,9 +16,10 @@ export function renderFileData(app: App, dataItem: TDataItem, field: TCommonFiel
 				const splitted = dataItem[field.name].split('.')
 				if (['jpg', 'jpeg', 'webp', 'png'].contains(splitted[1])) {
 					const currentFolder = await getCurrentFolder(app)
-					const image = app.vault.getAbstractFileByPath(`${currentFolder}/${dataItem[field.name]}`)
-					if (image && image instanceof TFile) {
-						const imagePath = app.vault.getResourcePath(image);
+					const fileImage = getFileByPath(app, `${currentFolder}/${dataItem[field.name]}`)
+
+					if (fileImage) {
+						const imagePath = app.vault.getResourcePath(fileImage);
 						imageContainer = imagePathContainer.createEl('img', { attr: { width: '100px', height: 'auto', src: imagePath } })
 					}
 				}

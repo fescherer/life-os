@@ -25,7 +25,6 @@ export async function renderData(app: App, contentEl: HTMLElement, dataItem: TDa
 			text.setValue(dataItem.name)
 			text.onChange(val => {
 				dataItem.name = val
-				// renderFields(app, dataItem, entitySchema, fieldContainer)
 			})
 		});
 
@@ -57,7 +56,7 @@ export async function renderData(app: App, contentEl: HTMLElement, dataItem: TDa
 				renderArrayData(field, dataItem, fieldContainer)
 				break;
 			case 'markdown':
-				await renderMarkdownData(app, dataItem, field, fieldContainer)
+				await renderMarkdownData(dataItem, field, fieldContainer)
 				break;
 		}
 	})

@@ -1,16 +1,16 @@
-import { App, Notice } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import { createNewFolderInCurrentDir, getCurrentFolder, getFolderName } from "./folderName";
 import { readMDFile, updateOrCreateMDFile } from "./markdown-manager";
 import { TEntity, TField } from "src/types/field";
 import { TValidate } from "src/types/util";
 
-export async function createEntityFolder(app: App, entity: TEntity): Promise<boolean> {
+export async function createEntityFolder(app: App, entity: TEntity): Promise<TFile | null> {
 	const folderName = getFolderName(app, entity.label);
 	await createNewFolderInCurrentDir(app, folderName)
 
 	const jsonString = JSON.stringify(entity, null, 2);
 	const entityResponse = await updateOrCreateMDFile(app, `${folderName}/entity.md`, jsonString)
-	if (!entityResponse) return false
+	if (!entityResponse) return null
 
 	const jsonStringData = JSON.stringify({
 		entity: entity.entity,
@@ -120,7 +120,7 @@ function isFieldValid(field: TField): boolean {
 */
 export async function getEntitySchema(app: App): Promise<TEntity | null> {
 	const currentFolder = await getCurrentFolder(app)
-	const entity = readMDFile(app.vault, `${currentFolder}/entity.md`) as Promise<TEntity>
+	const entity = readMDFile<TEntity>(app, `${currentFolder}/entity.md`)
 	if (!entity) new Notice('Fail to load entity.md')
 	return entity
 }

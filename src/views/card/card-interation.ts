@@ -2,8 +2,7 @@ import { App, Notice } from "obsidian";
 import { DetailsModal } from "src/modal/details/modal";
 import { showContextMenu } from "../context-menu";
 import { ModalDataForm } from "src/modal/data/modal";
-import { deleteCard } from "../delete-card";
-import { getEntityData } from "src/utils/entity-data-manager";
+import { deleteEntityDataItem, getEntityData } from "src/utils/entity-data-manager";
 
 export class CardInteractionManager {
 	private selectedCards = new Set<string>();
@@ -28,8 +27,6 @@ export class CardInteractionManager {
 
 		if (cardEl && this.container.contains(cardEl)) {
 			e.stopPropagation();
-			// const multiSelect = e.ctrlKey || e.metaKey;
-			// if (!multiSelect) this.clearSelection();
 			const cardId = String(cardEl?.dataset?.cardId)
 
 			this.clearSelection()
@@ -77,7 +74,7 @@ export class CardInteractionManager {
 			const cardData = data.data.find(item => `card-${item.id}` === cardId)
 			if (cardData && cardId)
 				showContextMenu(cardId, e.pageX, e.pageY, {
-					onDelete: () => deleteCard(this.app, cardData),
+					onDelete: () => deleteEntityDataItem(this.app, cardData),
 					onEdit: () => new ModalDataForm(this.app, cardData).open(),
 				});
 		}

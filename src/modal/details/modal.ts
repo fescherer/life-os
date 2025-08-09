@@ -3,6 +3,7 @@ import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 import { getEntitySchema } from "src/utils/entity-schema-manager";
 import { getCurrentFolder } from "src/utils/folderName";
+import { getFileByPath } from "src/utils/markdown-manager";
 
 export class DetailsModal extends Modal {
 	private data: TDataItem
@@ -17,20 +18,8 @@ export class DetailsModal extends Modal {
 
 		contentEl.addClass("data-modal");
 
-		// === Header with buttons ===
-		// const header = contentEl.createEl("div", { cls: "data-modal-header" });
-		// const editBtn = header.createEl("button", { text: "Edit" });
-		// const closeBtn = header.createEl("button", { text: "Close" });
-		// editBtn.onclick = () => {
-		//     // this.props.onEdit();
-		//     console.log('Edit modal')
-		// };
-		// closeBtn.onclick = () => this.close();
-
-
 		const container = contentEl.createEl("div", { cls: "data-modal-body" });
 
-		// === Left (Image) ===
 		const entitySchema = await getEntitySchema(this.app)
 		if (!entitySchema) return
 		const imageField = entitySchema.fields.find(item => item.type == 'file')
@@ -39,9 +28,10 @@ export class DetailsModal extends Modal {
 			const splitted = this.data[imageField.name].split('.')
 			if (['jpg', 'jpeg', 'webp', 'png'].contains(splitted[1])) {
 				const currentFolder = await getCurrentFolder(this.app)
-				const image = this.app.vault.getAbstractFileByPath(`${currentFolder}/${this.data[imageField.name]}`)
-				if (image && image instanceof TFile) {
-					const imagePath = this.app.vault.getResourcePath(image);
+				const fileImage = getFileByPath(this.app, `${currentFolder}/${this.data[imageField.name]}`)
+
+				if (fileImage) {
+					const imagePath = this.app.vault.getResourcePath(fileImage);
 					left.createEl("img", { attr: { src: imagePath }, cls: "data-modal-image" });
 				}
 			}

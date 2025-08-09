@@ -1,39 +1,50 @@
-import { App, normalizePath, TFile, Vault } from "obsidian";
-import { TData } from "src/types/data";
+import { App, normalizePath, TFile } from "obsidian";
 
-export function getFileByPath(app: App, path: string): TFile | null {
-    const normalized = normalizePath(path);
-    const file = app.vault.getAbstractFileByPath(normalized);
-    if (!(file instanceof TFile)) {
-        console.warn(`File not found: ${normalized}`);
-        return null;
-    }
-    return file;
+/**
+	* Get a file by given path.
+	* @param app - The Obsidian app instance (typically `this.app`)
+	* @param filePath - The full path including folders and file name with extension (e.g., "folder1/folder2/file.txt")
+	* @returns TFile or null.
+**/
+export function getFileByPath(app: App, filePath: string): TFile | null {
+	const normalized = normalizePath(filePath);
+	const file = app.vault.getAbstractFileByPath(normalized);
+	if (!(file instanceof TFile)) {
+		console.warn(`File not found: ${normalized}`);
+		return null;
+	}
+	return file;
 }
 
-export async function readMDFile(vault: Vault, filePath: string): Promise<unknown | null> {
-    const file = vault.getAbstractFileByPath(normalizePath(filePath));
+/**
+	* Read .md file and return the first JSON block found.
+	* @param app - The Obsidian app instance (typically `this.app`)
+	* @param filePath - The full path including folders and file name with extension (e.g., "folder1/folder2/file.txt")
+	* @returns json object or null.
+**/
+export async function readMDFile<T>(app: App, filePath: string): Promise<T | null> {
+	const file = getFileByPath(app, filePath)
 
-    if (!(file instanceof TFile)) {
-        console.warn(`File not found: ${filePath}`);
-        return null;
-    }
+	if (!file) {
+		console.warn(`File not found: ${filePath}`);
+		return null;
+	}
 
-    const content = await vault.read(file);
+	const content = await app.vault.read(file);
 
-    const match = content.match(/````?json\s*([\s\S]*?)\s*````?/i);
-    if (!match) {
-        console.warn(`No JSON block found in ${filePath}`);
-        return null;
-    }
+	const match = content.match(/````?json\s*([\s\S]*?)\s*````?/i);
+	if (!match) {
+		console.warn(`No JSON block found in ${filePath}`);
+		return null;
+	}
 
-    try {
-        const json = JSON.parse(match[1]);
-        return json;
-    } catch (err) {
-        console.error("Failed to parse JSON block:", err);
-        return null;
-    }
+	try {
+		const json = JSON.parse(match[1]);
+		return json;
+	} catch (err) {
+		console.error("Failed to parse JSON block:", err);
+		return null;
+	}
 }
 
 /**
@@ -42,74 +53,114 @@ export async function readMDFile(vault: Vault, filePath: string): Promise<unknow
  * @param fullPath The full path including folders and file name with extension (e.g., "folder1/folder2/file.txt")
  * @param content Optional content to initialize the file with
  * @returns The created file object
- */
+**/
 export async function updateOrCreateFileWithPath(
-    app: App,
-    fullPath: string,
-    content: string = ""
+	app: App,
+	fullPath: string,
+	content = ""
 ): Promise<TFile> {
-    const normalizedPath = normalizePath(fullPath);
+	const normalizedPath = normalizePath(fullPath);
 
-    // Split path into folders and file
-    const pathParts = normalizedPath.split("/");
-    const fileName = pathParts.pop()!;
-    const folderPath = pathParts.join("/");
+	// Split path into folders and file
+	const pathParts = normalizedPath.split("/");
+	pathParts.pop();
+	const folderPath = pathParts.join("/");
 
-    // Create folders recursively if they don't exist
-    if (folderPath && !(await app.vault.adapter.exists(folderPath))) {
-        const parts = normalizePath(folderPath).split("/");
-        let currentPath = "";
+	// Create folders recursively if they don't exist
+	if (folderPath && !(await app.vault.adapter.exists(folderPath))) {
+		const parts = normalizePath(folderPath).split("/");
+		let currentPath = "";
 
-        for (const part of parts) {
-            currentPath = normalizePath(currentPath ? `${currentPath}/${part}` : part);
-            if (!(await app.vault.adapter.exists(currentPath))) {
-                await app.vault.createFolder(currentPath);
-            }
-        }
-    }
+		for (const part of parts) {
+			currentPath = normalizePath(currentPath ? `${currentPath}/${part}` : part);
+			if (!(await app.vault.adapter.exists(currentPath))) {
+				await app.vault.createFolder(currentPath);
+			}
+		}
+	}
 
-    // Check if file already exists
-    const file = getFileByPath(app, normalizedPath)
-    if (file) {
-        // Update File  
-        await app.vault.modify(file, content)
-        return file
-    }
+	const file = getFileByPath(app, normalizedPath)
+	if (file) {
+		await app.vault.modify(file, content)
+		return file
+	}
 
-    else {
-        // Create File
-        const newFile = await app.vault.create(normalizedPath, content);
-        await app.workspace.getLeaf(true).openFile(newFile as TFile);
-        return newFile
-    }
+	else {
+		const newFile = await app.vault.create(normalizedPath, content);
+		await app.workspace.getLeaf(true).openFile(newFile as TFile);
+		return newFile
+	}
 }
 
-export async function updateOrCreateMDFile(
-    app: App,
-    filePath: string,
-    jsonString: string
-): Promise<boolean> {
-    const file = getFileByPath(app, filePath)
-    if (!file) {
-        const content = "```json\n" + jsonString + "\n```";
-        updateOrCreateFileWithPath(app, filePath, content)
-        return true
-    }
+/**
+ * Creates or updates a file with json block
+ * @param app The Obsidian app instance (typically `this.app`)
+ * @param filePath The full path including folders and file name with extension (e.g., "folder1/folder2/file.txt")
+ * @param jsonString The string to save as json block in md file
+ * @returns The created file object or null if error
+**/
+export async function updateOrCreateMDFile(app: App, filePath: string, jsonString: string): Promise<TFile | null> {
+	try {
+		const file = getFileByPath(app, filePath);
+		const jsonBlock = `\`\`\`json\n${jsonString}\n\`\`\``;
 
-    const content = await app.vault.read(file);
+		if (file) {
+			await app.vault.modify(file, jsonBlock);
+			return file;
+		}
 
-    const updatedContent = content.replace(
-        /````?json\s*([\s\S]*?)\s*````?/i,
-        `\`\`\`json\n${jsonString}\n\`\`\``
-    );
+		const newFile = await updateOrCreateFileWithPath(app, filePath, jsonBlock);
+		return newFile;
+	} catch (err) {
+		console.error("Error writing JSON block:", err);
+		return null;
+	}
+}
 
-    if (updatedContent === content) {
-        console.warn("No JSON block found to replace. Appending new JSON block.");
-        await app.vault.modify(file, `${content.trim()}\n\n\`\`\`json\n${jsonString}\n\`\`\``);
-        return true
+/**
+ * Creates a backup file and register of stuff did in the app
+ * @param app The Obsidian app instance (typically `this.app`)
+ * @param filePath The full path including folders and file name with extension (e.g., "folder1/folder2/file.txt")
+ * @param jsonString The string to save as json block in md file
+ * @returns The created file object or null if error
+**/
+export async function createLogItem(app: App, filePath: string, backupString: string, fileArray: string[]): Promise<TFile | null> {
+	try {
+		// Verify if folder log exists, if not, create one and also create a file log.md
+		// The file log.md is supposed to store a log id, which is incremental 
+		// generate randomID and create a folder - each folder will have the name as following "logs/<current-log-id>-<randomId>"
+		// Inside this folder, we will have a file called backup.md, where is gonna store the data that is beeing deleted
+		// This function need to return the backup.md
 
-    }
+		const logPropertiesFile = getFileByPath(app, 'log/logProperties.md')
+		if (!logPropertiesFile) await updateOrCreateFileWithPath(app, 'log/logProperties.md', "logId: 1") // Verificar qual a melhor formatação que podemos deixar no log.md
 
-    await app.vault.modify(file, updatedContent);
-    return true;
+		const logPropertiesFileContent = await readMDFile<{ id: number }>(app, 'log/logProperties.md')
+		if (!logPropertiesFileContent) return null
+
+		const randomId = crypto.randomUUID()
+		const folderName = `${logPropertiesFileContent.id}-${randomId}`
+		await app.vault.createFolder(`log/${folderName}`);
+		await app.vault.create(`log/${folderName}/backup.md`, backupString);
+
+		fileArray.map(file => createLogFile(app, file, `log/${folderName}`, `Move ${file} to log/${folderName}`))
+
+
+		const logFile = getFileByPath(app, `log/${folderName}/backup.md`)
+		return logFile
+	} catch (err) {
+		return null;
+	}
+}
+
+export async function createLogFile(app: App, filePath: string, targetPath: string, message: string) {
+	// Verify if folder log exists, if not, there is a problem, and you need to return null or other error message
+	// This function will also receives a path that is supposed to have the backup data.md
+	// This function also will receive the path that is located the file to be copied
+	// This function need to copy the file and save in the folder, I think this can have the same name
+	// This function need to write in the log.md
+	// This function need to delete from path that is currently file is located
+
+
+
 }

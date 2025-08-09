@@ -3,7 +3,7 @@ import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 import { slugify } from "src/utils/slugify";
 
-export async function renderMarkdownData(app: App, dataItem: TDataItem, field: TCommonField, container: HTMLElement) {
+export async function renderMarkdownData(dataItem: TDataItem, field: TCommonField, container: HTMLElement) {
     const file = `md/${slugify(dataItem.name)}-${dataItem.id}-${field.id}.md`
     dataItem[field.name] = file
     const splitted = file.split('/')
