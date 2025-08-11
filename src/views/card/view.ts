@@ -42,8 +42,8 @@ export class CardView extends ItemView {
 
 		const btnHeaderContainer = contentEl.createDiv({ cls: 'btn-container' })
 		const btns = [
-			{ icon: "update", text: "Update View", fn: this.render },
-			{ icon: "plus", text: "Add data", fn: new ModalDataForm(this.app).open },
+			{ icon: "update", text: "Update View", fn: () => this.render() },
+			{ icon: "plus", text: "Add data", fn: () => new ModalDataForm(this.app).open() },
 			{
 				icon: "pencil", text: "Edit Entity Schema", fn: () => {
 					// Editing entity brings a lot of problems, like, what I am gonna do with the camps that are changed? I am gonna delete those?
@@ -58,10 +58,11 @@ export class CardView extends ItemView {
 			setIcon(btnIconContainer, item.icon);
 			btnIconContainer.style.marginRight = "0.5em";
 			btn.createSpan({ text: item.text });
-			btn.onclick = () => {
+			btn.onclick = async () => {
 				item.fn()
 			}
 		})
+		renderCardView(this.app, contentEl, this.plugin)
 
 	}
 }

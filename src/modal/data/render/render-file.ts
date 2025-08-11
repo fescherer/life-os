@@ -1,4 +1,4 @@
-import { App, Notice, Setting, TFile } from "obsidian";
+import { App, Notice, Setting } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { TCommonField } from "src/types/field";
 import { getCurrentFolder } from "src/utils/folderName";

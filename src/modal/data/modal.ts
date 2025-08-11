@@ -1,4 +1,4 @@
-import { Modal, App, Setting, Notice, TFile } from "obsidian";
+import { Modal, App, Setting, Notice } from "obsidian";
 import { TDataItem } from "src/types/data";
 import { getCurrentFolder } from "src/utils/folderName";
 import { renderData } from "./render/_render";
@@ -56,13 +56,14 @@ export class ModalDataForm extends Modal {
 				this.entityCountID = newEntityDataIdCount;
 				this.dataItem.id = newEntityDataIdCount.toString().padStart(3, '0');
 			}
-			renderData(this.app, contentEl, this.dataItem, this.isSubmited, this.close.bind(this), this.defaultData)
+			renderData(this)
 		}
 	}
 
 	async onClose() {
 		console.log('closing')
 		if (!this.isSubmited) {
+			console.log(`is submited`, this.isSubmited)
 			new Notice("You close before saving. Nothing was created");
 
 			const currentFolder = await getCurrentFolder(this.app)
@@ -73,7 +74,7 @@ export class ModalDataForm extends Modal {
 				entitySchema.fields.map(async (field) => {
 					if (field.type === 'file') {
 						const fileName = this.dataItem[field.name]
-						const file = getFileByPath(this.app, `${currentFolder}/files/${fileName}`)
+						const file = getFileByPath(this.app, `${currentFolder}/${fileName}`)
 
 						if (file) await this.app.vault.delete(file)
 					}

@@ -1,5 +1,3 @@
-import { App, Setting } from "obsidian";
-import { TDataItem } from "src/types/data";
 import { renderStringData } from "./render-string";
 import { renderNumberData } from "./render-number";
 import { renderBooleanData } from "./render-boolean";
@@ -11,64 +9,66 @@ import { renderMarkdownData } from "./render-markdown";
 import { renderFileData } from "./render-file";
 import { createEntityData, updateEntityData } from "src/utils/entity-data-manager";
 import { getEntitySchema } from "src/utils/entity-schema-manager";
+import { ModalDataForm } from "../modal";
+import { Setting } from "obsidian";
 
-export async function renderData(app: App, contentEl: HTMLElement, dataItem: TDataItem, isSubmited: boolean, close: () => void, defaultData?: TDataItem) {
-	const entitySchema = await getEntitySchema(app)
+export async function renderData(modal: ModalDataForm) {
+	const entitySchema = await getEntitySchema(modal.app)
 	if (!entitySchema) return;
 
-	const dialogTitle = defaultData ? 'Edit data' : 'Create data'
-	contentEl.createEl("h2", { text: `${dialogTitle} for ${entitySchema.label}` });
+	const dialogTitle = modal.defaultData ? 'Edit data' : 'Create data'
+	modal.contentEl.createEl("h2", { text: `${dialogTitle} for ${entitySchema.label}` });
 
-	new Setting(contentEl)
+	new Setting(modal.contentEl)
 		.setName("Data Name")
 		.addText(text => {
-			text.setValue(dataItem.name)
+			text.setValue(modal.dataItem.name)
 			text.onChange(val => {
-				dataItem.name = val
+				modal.dataItem.name = val
 			})
 		});
 
-	const fieldContainer = contentEl.createDiv()
+	const fieldContainer = modal.contentEl.createDiv()
 	entitySchema.fields.map(async (field) => {
 		switch (field.type) {
 			case 'string':
-				renderStringData(field, dataItem, fieldContainer)
+				renderStringData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'number':
-				renderNumberData(field, dataItem, fieldContainer)
+				renderNumberData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'boolean':
-				renderBooleanData(field, dataItem, fieldContainer)
+				renderBooleanData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'date':
-				renderDateData(field, dataItem, fieldContainer)
+				renderDateData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'select':
-				renderSelectData(field, dataItem, fieldContainer)
+				renderSelectData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'url':
-				renderUrlData(field, dataItem, fieldContainer)
+				renderUrlData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'file':
-				renderFileData(app, dataItem, field, fieldContainer)
+				renderFileData(modal.app, modal.dataItem, field, fieldContainer)
 				break;
 			case 'array':
-				renderArrayData(field, dataItem, fieldContainer)
+				renderArrayData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'markdown':
-				await renderMarkdownData(dataItem, field, fieldContainer)
+				await renderMarkdownData(modal.dataItem, field, fieldContainer)
 				break;
 		}
 	})
 
-	new Setting(contentEl).addButton(btn => {
+	new Setting(modal.contentEl).addButton(btn => {
 		btn.setButtonText(dialogTitle).onClick(async () => {
 			let response = null
-			if (defaultData) response = await updateEntityData(app, dataItem)
-			else response = await createEntityData(app, dataItem)
-
-			isSubmited = !!response
-			close()
+			if (modal.defaultData) response = await updateEntityData(modal.app, modal.dataItem)
+			else response = await createEntityData(modal.app, modal.dataItem)
+			console.log(`response`, response)
+			modal.isSubmited = !!response
+			if (modal.isSubmited) modal.close()
 		})
 	})
 }

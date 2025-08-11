@@ -27,6 +27,7 @@ export async function createEntityData(app: App, dataItem: TDataItem): Promise<T
 		// Create markdown files with there is markdown fields
 		entitySchema.fields.filter(item => item.type === 'markdown').forEach(markdownfield => {
 			const filePath = `md/${slugify(dataItem.name)}-${dataItem.id}-${markdownfield.id}.md`
+			dataItem[markdownfield.name] = filePath
 			updateOrCreateFileWithPath(app, `${currentFolder}/${filePath}`, '# MD File. Do not change the file Name\n')
 		});
 
@@ -40,6 +41,7 @@ export async function createEntityData(app: App, dataItem: TDataItem): Promise<T
 		}
 		const jsonString = JSON.stringify(completeData, null, 2);
 		const success = await updateOrCreateMDFile(app, `${currentFolder}/data.md`, jsonString)
+		console.log(`success`, success)
 		return success ? completeData : null
 	}
 
@@ -173,7 +175,7 @@ export async function deleteEntityDataItem(app: App, data: TDataItem): Promise<T
 			entitySchema.fields.map(async (field) => {
 				if (field.type === 'file' || field.type === 'markdown') {
 
-					const file = getFileByPath(app, `${currentFolder}/files/${data[field.name]}`)
+					const file = getFileByPath(app, `${currentFolder}/${data[field.name]}`)
 					if (file) await app.vault.rename(file, `trash-bin/${completeId}`);
 				}
 			})
