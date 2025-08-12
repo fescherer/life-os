@@ -1,4 +1,7 @@
 import { App, normalizePath, TFile } from "obsidian";
+import { JSONCodeBlock } from "./json-code-block";
+import { warn } from "./warn";
+import { TLog, TLogType } from "src/types/util";
 
 /**
 	* Get a file by given path.
@@ -10,7 +13,7 @@ export function getFileByPath(app: App, filePath: string): TFile | null {
 	const normalized = normalizePath(filePath);
 	const file = app.vault.getAbstractFileByPath(normalized);
 	if (!(file instanceof TFile)) {
-		console.warn(`File not found: ${normalized}`);
+		// console.warn(`File not found: ${normalized}`);
 		return null;
 	}
 	return file;
@@ -86,9 +89,7 @@ export async function updateOrCreateFileWithPath(
 	}
 
 	else {
-		const newFile = await app.vault.create(normalizedPath, content);
-		await app.workspace.getLeaf(true).openFile(newFile as TFile);
-		return newFile
+		return await app.vault.create(normalizedPath, content)
 	}
 }
 
@@ -102,19 +103,46 @@ export async function updateOrCreateFileWithPath(
 export async function updateOrCreateMDFile(app: App, filePath: string, jsonString: string): Promise<TFile | null> {
 	try {
 		const file = getFileByPath(app, filePath);
-		const jsonBlock = `\`\`\`json\n${jsonString}\n\`\`\``;
 
 		if (file) {
-			await app.vault.modify(file, jsonBlock);
+			await app.vault.modify(file, jsonString).then(async () => {
+				await createLogItem(app, `File updated at ${filePath}`, '✅')
+			}).catch(async (err) => {
+				await warn(app, `Update file ${filePath} got an error! ${err}`)
+			})
 			return file;
 		}
 
-		const newFile = await updateOrCreateFileWithPath(app, filePath, jsonBlock);
+		const newFile = await updateOrCreateFileWithPath(app, filePath, jsonString);
 		return newFile;
 	} catch (err) {
 		console.error("Error writing JSON block:", err);
 		return null;
 	}
+}
+
+export async function createLogItem(app: App, message: string, logType: TLogType = '⚠️') {
+	const logsPath = 'logs/logs.md'
+
+	const logFilePath = getFileByPath(app, logsPath)
+	if (!logFilePath) await updateOrCreateFileWithPath(app, logsPath, JSONCodeBlock([]))
+
+	const logFile = await readMDFile<TLog[]>(app, logsPath)
+	if (!logFile) {
+		console.warn(`No log file found`)
+		return null
+	}
+
+	const newLogs: TLog[] = [
+		{
+			id: logFile.length + 1,
+			message,
+			date: new Date().toISOString(),
+			type: logType
+		}
+		, ...logFile
+	]
+	return await updateOrCreateFileWithPath(app, logsPath, JSONCodeBlock(newLogs))
 }
 
 /**
@@ -124,43 +152,66 @@ export async function updateOrCreateMDFile(app: App, filePath: string, jsonStrin
  * @param jsonString The string to save as json block in md file
  * @returns The created file object or null if error
 **/
-export async function createLogItem(app: App, filePath: string, backupString: string, fileArray: string[]): Promise<TFile | null> {
+export async function createlogBackupItem(app: App, backupString: string, moveArray: string[]): Promise<TFile | null> {
 	try {
-		// Verify if folder log exists, if not, create one and also create a file log.md
-		// The file log.md is supposed to store a log id, which is incremental 
-		// generate randomID and create a folder - each folder will have the name as following "logs/<current-log-id>-<randomId>"
+		// Verify if folder logs exists, if not, create one and also create a file logs.md
+		// The file logs.md is supposed to store a logs id, which is incremental 
+		// generate randomID and create a folder - each folder will have the name as following "logss/<current-logs-id>-<randomId>"
 		// Inside this folder, we will have a file called backup.md, where is gonna store the data that is beeing deleted
-		// This function need to return the backup.md
 
-		const logPropertiesFile = getFileByPath(app, 'log/logProperties.md')
-		if (!logPropertiesFile) await updateOrCreateFileWithPath(app, 'log/logProperties.md', "logId: 1") // Verificar qual a melhor formatação que podemos deixar no log.md
+		const propertiesPath = 'logs/properties.md'
+		const logsPropertiesFilePath = getFileByPath(app, propertiesPath)
+		if (!logsPropertiesFilePath) await updateOrCreateFileWithPath(app, propertiesPath, JSONCodeBlock({ id: 0 }))
 
-		const logPropertiesFileContent = await readMDFile<{ id: number }>(app, 'log/logProperties.md')
-		if (!logPropertiesFileContent) return null
+		const logsPropertiesFile = await readMDFile<{ id: number }>(app, propertiesPath)
+		if (!logsPropertiesFile) return null
 
 		const randomId = crypto.randomUUID()
-		const folderName = `${logPropertiesFileContent.id}-${randomId}`
-		await app.vault.createFolder(`log/${folderName}`);
-		await app.vault.create(`log/${folderName}/backup.md`, backupString);
+		const folderName = `${logsPropertiesFile.id + 1}-${randomId}`
+		try {
+			await app.vault.createFolder(`logs/${folderName}`);
+			await app.vault.create(`logs/${folderName}/backup.md`, backupString)
+			await createLogItem(app, `Backup file created at logs/${folderName}/backup.md`, '✅')
+		} catch (err) {
+			await warn(app, `Creating backup file logs/${folderName}/backup.md got an error! ${err}`)
+		}
 
-		fileArray.map(file => createLogFile(app, file, `log/${folderName}`, `Move ${file} to log/${folderName}`))
+		try {
+			moveArray.map(async (path) => {
+				const file = getFileByPath(app, path)
+				const filename = path.split('/').at(-1) || ''
+				const randomFileId = crypto.randomUUID()
+				console.log(`logs/${folderName}/${randomFileId}-${filename}`)
+				if (file) await app.vault.rename(file, `logs/${folderName}/${randomFileId}-${filename}`)
+				await createLogItem(app, `Move ${path} to logs/${folderName}`, '✅')
+			})
+		} catch (err) {
+			await warn(app, `Moving file ${moveArray} got an error! ${err}`)
+		}
 
-
-		const logFile = getFileByPath(app, `log/${folderName}/backup.md`)
-		return logFile
+		updateOrCreateMDFile(app, 'logs/properties.md', JSONCodeBlock({ id: logsPropertiesFile.id + 1 }))
+		const logsFile = getFileByPath(app, `logs/${folderName}/backup.md`)
+		return logsFile
 	} catch (err) {
 		return null;
 	}
 }
 
-export async function createLogFile(app: App, filePath: string, targetPath: string, message: string) {
-	// Verify if folder log exists, if not, there is a problem, and you need to return null or other error message
-	// This function will also receives a path that is supposed to have the backup data.md
-	// This function also will receive the path that is located the file to be copied
-	// This function need to copy the file and save in the folder, I think this can have the same name
-	// This function need to write in the log.md
-	// This function need to delete from path that is currently file is located
 
 
 
-}
+/*
+logs STRUCTURE
+
+logss
+-> properties.md
+-> logss.md
+-> 1-cccc-bbbb-aaaa-1111
+   -> img1.png
+   -> img2.png
+   -> backup.md
+-> 2-dddd-2222-yyyy-ssss
+   -> img5.png
+   -> backup.md
+
+*/

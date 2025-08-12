@@ -1,11 +1,13 @@
-import { App, normalizePath, Notice } from "obsidian";
+import { App, Notice } from "obsidian";
 import { getCurrentFolder } from "./folderName";
 import { TData, TDataItem } from "src/types/data";
-import { getFileByPath, readMDFile, updateOrCreateFileWithPath, updateOrCreateMDFile } from "./markdown-manager";
+import { createlogBackupItem, getFileByPath, readMDFile, updateOrCreateFileWithPath, updateOrCreateMDFile } from "./markdown-manager";
 import { slugify } from "./slugify";
 import { getEntitySchema } from "./entity-schema-manager";
 import { TValidate } from "src/types/util";
 import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
+import { JSONCodeBlock } from "./json-code-block";
+import { warn } from "./warn";
 
 /**
 	* Update data.md file with new TDataItem (Create files and markdown if necessary).
@@ -39,8 +41,8 @@ export async function createEntityData(app: App, dataItem: TDataItem): Promise<T
 			idCount: newIdCount,
 			data: [...entityData.data, dataItem]
 		}
-		const jsonString = JSON.stringify(completeData, null, 2);
-		const success = await updateOrCreateMDFile(app, `${currentFolder}/data.md`, jsonString)
+
+		const success = await updateOrCreateMDFile(app, `${currentFolder}/data.md`, JSONCodeBlock(completeData))
 		console.log(`success`, success)
 		return success ? completeData : null
 	}
@@ -80,7 +82,7 @@ export async function updateEntityData(app: App, dataItem: TDataItem) {
 				...entityData,
 				data: [...entityData.data.filter(item => item.id != dataItem.id), dataItem].sort((a, b) => Number(a.id) - Number(b.id))
 			}
-			const jsonString = JSON.stringify(completeData, null, 2);
+			const jsonString = JSONCodeBlock(completeData);
 
 			const success = await updateOrCreateMDFile(app, `${currentFolder}/data.md`, jsonString)
 			return success ? completeData : null
@@ -152,33 +154,26 @@ export async function deleteEntityDataItem(app: App, data: TDataItem): Promise<T
 
 			if (!entityData || !entitySchema) return
 
-			const randomId = crypto.randomUUID()
-			const completeId = `${entitySchema.entity}-${data.name}-${randomId}`
+			const pendingPathFiles: string[] = []
+			entitySchema.fields.map(async (field) => {
+				if (field.type === 'file' || field.type === 'markdown') {
 
-			if (!(app.vault.getAbstractFileByPath(normalizePath('trash-bin')))) {
-				await app.vault.createFolder('trash-bin');
-			}
-			await app.vault.createFolder(`trash-bin/${completeId}`);
+					const file = getFileByPath(app, `${currentFolder}/${data[field.name]}`)
+					if (file)
+						pendingPathFiles.push(file.path)
+					else
+						await warn(app, `File at ${currentFolder}/${data[field.name]} not found`)
+				}
+			})
 
 			const completeData = {
 				schema: entitySchema,
 				deletedData: data,
 			}
 
-			const jsonString = JSON.stringify(completeData, null, 2);
-			await app.vault.create(`trash-bin/${completeId}/${completeId}.md`, jsonString);
-
 			const newData = { ...entityData, data: entityData.data.filter(item => item.id !== data.id) }
-			const newDataJsonString = JSON.stringify(newData, null, 2);
-			await updateOrCreateMDFile(app, `${currentFolder}/data.md`, newDataJsonString)
-
-			entitySchema.fields.map(async (field) => {
-				if (field.type === 'file' || field.type === 'markdown') {
-
-					const file = getFileByPath(app, `${currentFolder}/${data[field.name]}`)
-					if (file) await app.vault.rename(file, `trash-bin/${completeId}`);
-				}
-			})
+			await updateOrCreateMDFile(app, `${currentFolder}/data.md`, JSONCodeBlock(newData))
+			await createlogBackupItem(app, JSONCodeBlock(completeData), pendingPathFiles)
 			return newData
 		}, () => null).open()
 	return null

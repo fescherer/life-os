@@ -3,21 +3,23 @@ import { createNewFolderInCurrentDir, getCurrentFolder, getFolderName } from "./
 import { readMDFile, updateOrCreateMDFile } from "./markdown-manager";
 import { TEntity, TField } from "src/types/field";
 import { TValidate } from "src/types/util";
+import { JSONCodeBlock } from "./json-code-block";
 
 export async function createEntityFolder(app: App, entity: TEntity): Promise<TFile | null> {
 	const folderName = getFolderName(app, entity.label);
 	await createNewFolderInCurrentDir(app, folderName)
 
-	const jsonString = JSON.stringify(entity, null, 2);
+	const jsonString = JSONCodeBlock(entity);
 	const entityResponse = await updateOrCreateMDFile(app, `${folderName}/entity.md`, jsonString)
 	if (!entityResponse) return null
 
-	const jsonStringData = JSON.stringify({
+	const jsonStringData = JSONCodeBlock({
 		entity: entity.entity,
 		label: entity.label,
 		idCount: 0,
 		data: []
-	}, null, 2)
+	})
+
 	return await updateOrCreateMDFile(app, `${folderName}/data.md`, jsonStringData)
 }
 
@@ -57,7 +59,7 @@ export async function updateEntitySchema(app: App, entity: TEntity) {
 	if (validate.isValid) {
 		const currentFolder = await getCurrentFolder(app)
 
-		const jsonString = JSON.stringify(entity, null, 2);
+		const jsonString = JSONCodeBlock(entity);
 		await updateOrCreateMDFile(app, `${currentFolder}/entity.md`, jsonString)
 	} else {
 		new Notice(`Fill all the fields! ${validate.missingFields}`)
