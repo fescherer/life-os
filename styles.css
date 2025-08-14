@@ -205,3 +205,15 @@ If your plugin does not need CSS, delete this file.
 	background: var(--interactive-accent-hover);
 	color: var(--text-on-accent);
 }
+
+.image-preview {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.image-preview span {
+	overflow: hidden;
+}
