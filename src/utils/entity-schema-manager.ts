@@ -55,8 +55,21 @@ export async function updateEntitySchema(app: App, entity: TEntity) {
 	// wip TODO - 
 	// If user has add or remove some fields, we need to or, add a default value to all the data, or remove all the fields removed from data
 
+	// Validate if schema is ok
 	const validate = await validateEntitySchema(entity)
 	if (validate.isValid) {
+
+		// get older entity
+		const oldEntity = await getEntitySchema(app)
+
+		//verify if in oldEntity has some file attached to
+		oldEntity?.fields.map(field => {
+			if (field.type == 'file' || field.type == 'markdown') {
+				// Move files as if was deleted- create log etc
+			}
+		})
+
+
 		const currentFolder = await getCurrentFolder(app)
 
 		const jsonString = JSONCodeBlock(entity);

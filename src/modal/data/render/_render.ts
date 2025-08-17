@@ -6,11 +6,11 @@ import { renderSelectData } from "./render-select";
 import { renderUrlData } from "./render-url";
 import { renderArrayData } from "./render-array";
 import { renderMarkdownData } from "./render-markdown";
-import { renderFileData } from "./render-file";
 import { createEntityData, updateEntityData } from "src/utils/entity-data-manager";
 import { getEntitySchema } from "src/utils/entity-schema-manager";
 import { ModalDataForm } from "../modal";
 import { Setting } from "obsidian";
+import { renderFileData } from "./render-file";
 
 export async function renderData(modal: ModalDataForm) {
 	const entitySchema = await getEntitySchema(modal.app)
@@ -29,6 +29,7 @@ export async function renderData(modal: ModalDataForm) {
 		});
 
 	const fieldContainer = modal.contentEl.createDiv()
+	const aux: Record<string, { file: File, id: string }[]> = {}
 	entitySchema.fields.map(async (field) => {
 		switch (field.type) {
 			case 'string':
@@ -50,7 +51,8 @@ export async function renderData(modal: ModalDataForm) {
 				renderUrlData(field, modal.dataItem, fieldContainer)
 				break;
 			case 'file':
-				renderFileData(modal.app, modal.dataItem, field, fieldContainer)
+				aux[field.name] = []
+				renderFileData(modal.app, modal.dataItem, field, fieldContainer, aux)
 				break;
 			case 'array':
 				renderArrayData(field, modal.dataItem, fieldContainer)
@@ -62,12 +64,14 @@ export async function renderData(modal: ModalDataForm) {
 	})
 
 	new Setting(modal.contentEl).addButton(btn => {
+
 		btn.setButtonText(dialogTitle).onClick(async () => {
 			let response = null
-			if (modal.defaultData) response = await updateEntityData(modal.app, modal.dataItem)
-			else response = await createEntityData(modal.app, modal.dataItem)
-			console.log(`response`, response)
+			if (modal.defaultData) response = await updateEntityData(modal.app, modal.dataItem, aux)
+			else response = await createEntityData(modal.app, modal.dataItem, aux)
 			modal.isSubmited = !!response
+
+			console.log(modal.isSubmited, response)
 			if (modal.isSubmited) modal.close()
 		})
 	})

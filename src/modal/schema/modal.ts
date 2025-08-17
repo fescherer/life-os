@@ -1,25 +1,27 @@
 import { Modal, App, Setting, Notice, } from "obsidian";
 import { slugify } from "../../utils/slugify";
 import { TEntity, TField, TTypeField } from "src/types/field";
-import { createEntitySchema } from "src/utils/entity-schema-manager";
+import { createEntitySchema, updateEntitySchema } from "src/utils/entity-schema-manager";
 import { renderField } from "./render/_render";
 
 export class ModalSchemaForm extends Modal {
 	entity: TEntity
 	isSubmited: boolean
+	defaultEntity: TEntity | undefined
 	title: string
 	buttonText: string
 
-	constructor(app: App, defaultData?: TEntity) {
+	constructor(app: App, defaultEntity?: TEntity) {
 		super(app);
 		this.isSubmited = false;
-		this.entity = defaultData ? defaultData : {
+		this.defaultEntity = defaultEntity;
+		this.entity = defaultEntity ? defaultEntity : {
 			entity: '',
 			label: '',
 			fields: []
 		}
-		this.title = defaultData ? `Edit ${this.entity.label}` : 'Create new Entity'
-		this.buttonText = defaultData ? `Edit ${this.entity.label}` : "Create"
+		this.title = defaultEntity ? `Edit ${this.entity.label}` : 'Create new Entity'
+		this.buttonText = defaultEntity ? `Edit ${this.entity.label}` : "Create"
 	}
 
 	onOpen() {
@@ -56,14 +58,18 @@ export class ModalSchemaForm extends Modal {
 
 		new Setting(contentEl)
 			.addButton(btn =>
-				btn.setButtonText(this.buttonText).setCta().onClick(() => {
+				btn.setButtonText(this.buttonText).setCta().onClick(async () => {
 					const completeEntity: TEntity = {
 						...this.entity,
 						entity: slugify(this.entity.label || ''),
 						fields: this.entity.fields
 					}
 
-					createEntitySchema(this.app, completeEntity)
+					let response = null
+					if (this.defaultEntity) response = await updateEntitySchema(this.app, completeEntity)
+					else response = await createEntitySchema(this.app, completeEntity)
+					this.isSubmited = !!response
+					if (this.isSubmited) close()
 				})
 			);
 	}

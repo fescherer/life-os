@@ -105,11 +105,12 @@ export async function updateOrCreateMDFile(app: App, filePath: string, jsonStrin
 		const file = getFileByPath(app, filePath);
 
 		if (file) {
-			await app.vault.modify(file, jsonString).then(async () => {
-				await createLogItem(app, `File updated at ${filePath}`, '✅')
-			}).catch(async (err) => {
-				await warn(app, `Update file ${filePath} got an error! ${err}`)
-			})
+			try {
+				await app.vault.modify(file, jsonString);
+				await createLogItem(app, `File updated at ${filePath}`, '✅');
+			} catch (err) {
+				await warn(app, `Update file ${filePath} got an error! ${err}`);
+			}
 			return file;
 		}
 
@@ -181,7 +182,6 @@ export async function createlogBackupItem(app: App, backupString: string, moveAr
 				const file = getFileByPath(app, path)
 				const filename = path.split('/').at(-1) || ''
 				const randomFileId = crypto.randomUUID()
-				console.log(`logs/${folderName}/${randomFileId}-${filename}`)
 				if (file) await app.vault.rename(file, `logs/${folderName}/${randomFileId}-${filename}`)
 				await createLogItem(app, `Move ${path} to logs/${folderName}`, '✅')
 			})
@@ -196,8 +196,6 @@ export async function createlogBackupItem(app: App, backupString: string, moveAr
 		return null;
 	}
 }
-
-
 
 
 /*

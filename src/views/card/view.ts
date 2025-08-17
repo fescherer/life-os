@@ -4,6 +4,7 @@ import { renderCardView } from "./render/_render";
 import DynamicInterfacePlugin from "main";
 import { getEntityData } from "src/utils/entity-data-manager";
 import { getEntitySchema } from "src/utils/entity-schema-manager";
+import { ModalSchemaForm } from "src/modal/schema/modal";
 
 export const CARD_VIEW_TYPE = "card-view";
 
@@ -36,6 +37,7 @@ export class CardView extends ItemView {
 	async render() {
 		const { contentEl } = this;
 		const entityData = await getEntitySchema(this.app)
+		if (!entityData) return
 
 		contentEl.empty();
 		contentEl.createEl("h2", { text: `Hello! You are seeing data of ${entityData?.entity} vault` });
@@ -44,14 +46,7 @@ export class CardView extends ItemView {
 		const btns = [
 			{ icon: "update", text: "Update View", fn: () => this.render() },
 			{ icon: "plus", text: "Add data", fn: () => new ModalDataForm(this.app).open() },
-			{
-				icon: "pencil", text: "Edit Entity Schema", fn: () => {
-					// Editing entity brings a lot of problems, like, what I am gonna do with the camps that are changed? I am gonna delete those?
-					// new ModalForm(app, async (isValid, result) => {
-					// 	if (isValid) updateEntityFolder(app, result)
-					// }, entitySchema).open();
-				}
-			}
+			{ icon: "pencil", text: "Edit Entity Schema", fn: () => new ModalSchemaForm(this.app, entityData).open() }
 		].map(item => {
 			const btn = btnHeaderContainer.createEl("button", { cls: "icon-button" });
 			const btnIconContainer = btn.createSpan();

@@ -206,14 +206,27 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-on-accent);
 }
 
-.image-preview {
+.file-preview {
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	overflow: hidden;
+	margin: 0.5rem 0;
+	position: relative;
+	width: 150px;
+	height: 150px;
+	padding: 0.5rem;
 }
 
-.image-preview span {
-	overflow: hidden;
+.file-preview button {
+	position: absolute;
+	right: 10%;
+}
+
+.file-preview img {
+	object-fit: cover;
+	width: auto;
 }

@@ -9,29 +9,108 @@ import { ConfirmDialog } from "src/ui/confirm-dialog.ui";
 import { JSONCodeBlock } from "./json-code-block";
 import { warn } from "./warn";
 
+async function updateFiles(app: App, aux: Record<string, { file: File, id: string }[]>, dataItem: TDataItem) {
+	const entitySchema = await getEntitySchema(app)
+	if (!entitySchema?.fields.find(schema => schema.type == 'file')) return
+
+	const currentFolder = await getCurrentFolder(app)
+	if (!(await app.vault.adapter.exists(`${currentFolder}/files`))) {
+		await app.vault.createFolder(`${currentFolder}/files`);
+	}
+
+	for (const auxKey of Object.keys(aux)) {
+		const oldPaths: string[] = dataItem[auxKey]?.split("||").filter(Boolean) ?? []; // filter(Boolean) serve para remover qualquer valor falsy
+		if (oldPaths.length != 0) {
+			await createlogBackupItem(app, JSONCodeBlock({ update: oldPaths }), oldPaths.map(path => `${currentFolder}/${path}`))
+		}
+
+
+		const newFiles = aux[auxKey];
+		const newPaths: string[] = [];
+
+		for (let indx = 0; indx < newFiles.length; indx++) {
+			const fileObj = newFiles[indx];
+			const ext = fileObj.file.name.substring(fileObj.file.name.lastIndexOf(".") + 1).toLowerCase();
+			const fileName = `${dataItem.name}-${dataItem.id}-${auxKey}-${indx}.${ext}`;
+			const fullPath = `${currentFolder}/files/${fileName}`;
+
+			const arrayBuffer = await fileObj.file.arrayBuffer();
+			await app.vault.createBinary(fullPath, arrayBuffer);
+			newPaths.push(`files/${fileName}`);
+		}
+		dataItem[auxKey] = newPaths.join("||");
+	}
+}
+
+// async function updateFiles(app: App, aux: Record<string, { file: File, id: string }[]>, dataItem: TDataItem) {
+// 	const entitySchema = await getEntitySchema(app)
+// 	if (!entitySchema?.fields.find(schema => schema.type == 'file')) return
+
+// 	const currentFolder = await getCurrentFolder(app)
+// 	if (!(await app.vault.adapter.exists(`${currentFolder}/files`))) {
+// 		await app.vault.createFolder(`${currentFolder}/files`);
+// 	}
+
+// 	const auxKeys = Object.keys(aux)
+// 	for (const auxKey of auxKeys) {
+// 		const oldPaths: string[] = dataItem[auxKey]?.split("||").filter(Boolean) ?? []; // filter(Boolean) serve para remover qualquer valor falsy
+// 		const newFiles = aux[auxKey];
+// 		const newPaths: string[] = [];
+// 		const oldPathSet = new Set(oldPaths);
+
+// 		for (let indx = 0; indx < newFiles.length; indx++) {
+// 			const fileObj = newFiles[indx];
+// 			const ext = fileObj.file.name.substring(fileObj.file.name.lastIndexOf(".") + 1).toLowerCase();
+// 			const fileName = `${dataItem.name}-${dataItem.id}-${auxKey}-${indx}.${ext}`;
+// 			const relativePath = `files/${fileName}`;
+// 			const fullPath = `${currentFolder}/files/${fileName}`;
+
+// 			if (oldPathSet.has(relativePath)) {
+// 				newPaths.push(relativePath);
+// 				oldPathSet.delete(relativePath);
+// 			} else {
+// 				const arrayBuffer = await fileObj.file.arrayBuffer();
+// 				await app.vault.createBinary(fullPath, arrayBuffer);
+// 				newPaths.push(relativePath);
+// 			}
+// 		}
+
+// 		if (oldPathSet.size != 0) {
+// 			await createlogBackupItem(app, JSONCodeBlock({ moved: [...oldPathSet] }), [...oldPathSet].map(path => `${currentFolder}/${path}`))
+// 		}
+
+// 		dataItem[auxKey] = newPaths.join("||");
+// 	}
+// }
+
 /**
 	* Update data.md file with new TDataItem (Create files and markdown if necessary).
 	* @param app - The Obsidian app instance (typically `this.app`).
 	* @param dataItem - TDataItem to be added to TData
 	* @returns TData or null.
 **/
-export async function createEntityData(app: App, dataItem: TDataItem): Promise<TData | null> {
+export async function createEntityData(app: App, dataItem: TDataItem, aux: Record<string, { file: File, id: string }[]>): Promise<TData | null> {
 	dataItem.createdAt = new Date().toISOString()
 	dataItem.updatedAt = new Date().toISOString()
 
-	const validate = await validateEntityDataItem(app, dataItem)
+	const validate = await validateEntityDataItem(app, dataItem, aux)
 	if (validate.isValid) {
 		const currentFolder = await getCurrentFolder(app)
 		const entitySchema = await getEntitySchema(app)
 		const entityData = await getEntityData(app)
 		if (!entityData || !entitySchema) return null
 
-		// Create markdown files with there is markdown fields
-		entitySchema.fields.filter(item => item.type === 'markdown').forEach(markdownfield => {
-			const filePath = `md/${slugify(dataItem.name)}-${dataItem.id}-${markdownfield.id}.md`
-			dataItem[markdownfield.name] = filePath
-			updateOrCreateFileWithPath(app, `${currentFolder}/${filePath}`, '# MD File. Do not change the file Name\n')
+		await updateFiles(app, aux, dataItem)
+
+		entitySchema.fields.forEach(field => {
+			// Create markdown files with there is markdown fields
+			if (field.type === 'markdown') {
+				const filePath = `md/${slugify(dataItem.name)}-${dataItem.id}-${field.id}.md`
+				dataItem[field.name] = filePath
+				updateOrCreateFileWithPath(app, `${currentFolder}/${filePath}`, '# MD File. Do not change the file Name\n')
+			}
 		});
+
 
 		const newIdCount = (entityData.idCount + 1)
 		dataItem.id = newIdCount.toString().padStart(3, '0')
@@ -43,7 +122,6 @@ export async function createEntityData(app: App, dataItem: TDataItem): Promise<T
 		}
 
 		const success = await updateOrCreateMDFile(app, `${currentFolder}/data.md`, JSONCodeBlock(completeData))
-		console.log(`success`, success)
 		return success ? completeData : null
 	}
 
@@ -59,36 +137,33 @@ export async function createEntityData(app: App, dataItem: TDataItem): Promise<T
 	* @param dataItem - TDataItem to be modify
 	* @returns TData or null.
 **/
-export async function updateEntityData(app: App, dataItem: TDataItem) {
-	dataItem.updatedAt = new Date().toISOString()
+export async function updateEntityData(app: App, dataItem: TDataItem, aux: Record<string, { file: File, id: string }[]>): Promise<TData | null> {
 
-	const validate = await validateEntityDataItem(app, dataItem)
+	const validate = await validateEntityDataItem(app, dataItem, aux)
 	if (validate.isValid) {
 		const currentFolder = await getCurrentFolder(app)
 		const entityData = await getEntityData(app)
 		if (!entityData) return null
 
-		// TODO, if user changes File type it would be a big problem if the image was deleted, we need to make some logic here
-		// When open the edit, a file will be loaded
-		// If user chooses other file to overwrite this one, we need to save this as a temp file, maybe in the filename put a temp prefix
-		// If user chooses other file, we overwrite the temp one and looses the previous (There is no problem doing that)
-		// If user finishes the edit, we make something similar to delete. We need to write in log.md that user has updated a file and also copy that file to a folder with id and all of that
-		// After succefully moving the file, we rename the temp one to a original file
-		// The image name itself will be the same, but we can update that too   
+		return new Promise<TData | null>((resolve) => {
+			new ConfirmDialog(app, 'Are you sure you want to update this item?', async () => {
+				dataItem.updatedAt = new Date().toISOString()
+				await updateFiles(app, aux, dataItem)
 
+				const completeData = {
+					...entityData,
+					data: [...entityData.data.filter(item => item.id != dataItem.id), dataItem].sort((a, b) => Number(a.id) - Number(b.id))
+				}
+				const jsonString = JSONCodeBlock(completeData);
+				console.log('new updateData', completeData)
+				const success = await updateOrCreateMDFile(app, `${currentFolder}/data.md`, jsonString)
+				resolve(success ? completeData : null);
+			}, () => {
+				new Notice('You canceled the edit')
+				resolve(null);
+			}).open()
+		});
 
-		new ConfirmDialog(app, 'Are you sure you want to update this item?', async () => {
-			const completeData = {
-				...entityData,
-				data: [...entityData.data.filter(item => item.id != dataItem.id), dataItem].sort((a, b) => Number(a.id) - Number(b.id))
-			}
-			const jsonString = JSONCodeBlock(completeData);
-
-			const success = await updateOrCreateMDFile(app, `${currentFolder}/data.md`, jsonString)
-			return success ? completeData : null
-		}, () => {
-			new Notice('You canceled the edit')
-		}).open()
 	} else {
 		new Notice(`Fill all the fields! ${validate.missingFields}`)
 		return null
@@ -101,28 +176,51 @@ export async function updateEntityData(app: App, dataItem: TDataItem) {
 	* @param dataItem - TDataItem to be validate
 	* @returns TValidate
 **/
-export async function validateEntityDataItem(app: App, data: TDataItem): Promise<TValidate> {
+export async function validateEntityDataItem(app: App, data: TDataItem, aux: Record<string, { file: File, id: string }[]>): Promise<TValidate> {
 	const entitySchema = await getEntitySchema(app)
 	if (!entitySchema) return {
 		isValid: false,
 		missingFields: []
 	}
 
+	const validateAuxValue = validateAux(aux)
+	if (validateAuxValue.length) return {
+		isValid: false,
+		missingFields: validateAuxValue
+	}
+
 	const missingFields = [];
 
 	for (const field of entitySchema.fields) {
-		const value = data[field.name];
+		if (field.type != 'file') {
+			const value = data[field.name];
 
-		const isEmpty = value === undefined || value === null
+			const isEmpty = value === undefined || value === null
 
-		if (isEmpty)
-			missingFields.push(field.name);
+			if (isEmpty)
+				missingFields.push(field.name);
+		}
 	}
+
+	if (!data.name) missingFields.push('name')
 
 	return {
 		isValid: missingFields.length === 0,
 		missingFields
 	};
+}
+
+function validateAux(aux: Record<string, { file: File; id: string }[]>): string[] {
+	if (Object.keys(aux).length === 0) return [];
+
+	const missingFields: string[] = []
+	for (const key in aux) {
+		if (!aux[key] || aux[key].length === 0) {
+			missingFields.push(key)
+		}
+	}
+
+	return missingFields
 }
 
 

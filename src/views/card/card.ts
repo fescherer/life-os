@@ -31,7 +31,6 @@ export class Card {
 		const optButtons = headerContainer.createEl("button", {})
 		setIcon(optButtons, 'ellipsis-vertical')
 		optButtons.onclick = (e) => {
-			console.log('Left CLick', e)
 			const event = new MouseEvent("contextmenu", {
 				bubbles: true,
 				cancelable: true,

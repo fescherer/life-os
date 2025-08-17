@@ -74,7 +74,7 @@ export class DetailsModal extends Modal {
 		linkBtn.onclick = async () => {
 			const filePath = this.data[field.name]
 
-			console.log(filePath)
+			// console.log(filePath)
 			const currentPath = await getCurrentFolder(this.app)
 
 			const file = this.app.vault.getAbstractFileByPath(`${currentPath}/${filePath}`);
