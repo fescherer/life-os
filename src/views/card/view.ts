@@ -2,7 +2,6 @@ import { ItemView, setIcon, WorkspaceLeaf } from "obsidian";
 import { ModalDataForm } from "src/modal/data/modal";
 import { renderCardView } from "./render/_render";
 import DynamicInterfacePlugin from "main";
-import { getEntityData } from "src/utils/entity-data-manager";
 import { getEntitySchema } from "src/utils/entity-schema-manager";
 import { ModalSchemaForm } from "src/modal/schema/modal";
 
@@ -12,10 +11,12 @@ export const CARD_VIEW_TYPE = "card-view";
 
 export class CardView extends ItemView {
 	plugin: DynamicInterfacePlugin;
+	currentFolder: string
 
-	constructor(leaf: WorkspaceLeaf, plugin: DynamicInterfacePlugin) {
+	constructor(leaf: WorkspaceLeaf, plugin: DynamicInterfacePlugin, currentFolder: string) {
 		super(leaf);
 		this.plugin = plugin;
+		this.currentFolder = currentFolder
 	}
 
 	getViewType() {
@@ -27,16 +28,30 @@ export class CardView extends ItemView {
 	}
 
 	async onOpen() {
-		this.render()
+		if (!this.currentFolder) {
+			const { contentEl } = this
+			const wrapper = contentEl.createDiv({ cls: 'no-view' })
+			wrapper.createEl('h2', { text: '🦒There is no entity schema save in the memory!' })
+			wrapper.createEl('strong', { text: 'Do you want to create one in the current folder?' })
+			const btn = wrapper.createEl('button', { cls: 'delete-icon', text: 'Create Entity Schema' })
+			btn.onclick = () => new ModalSchemaForm(this.app).open();
+		} else {
+			this.render()
+		}
 	}
 
 	async onClose() {
 		// Clean up if needed
 	}
 
+	setFolder(folder: string) {
+		this.currentFolder = folder;
+		this.render();
+	}
+
 	async render() {
 		const { contentEl } = this;
-		const entityData = await getEntitySchema(this.app)
+		const entityData = await getEntitySchema(this.app, this.currentFolder)
 		if (!entityData) return
 
 		contentEl.empty();
@@ -47,7 +62,9 @@ export class CardView extends ItemView {
 			{ icon: "update", text: "Update View", fn: () => this.render() },
 			{ icon: "plus", text: "Add data", fn: () => new ModalDataForm(this.app).open() },
 			{ icon: "pencil", text: "Edit Entity Schema", fn: () => new ModalSchemaForm(this.app, entityData).open() }
-		].map(item => {
+		]
+
+		btns.map(item => {
 			const btn = btnHeaderContainer.createEl("button", { cls: "icon-button" });
 			const btnIconContainer = btn.createSpan();
 			setIcon(btnIconContainer, item.icon);

@@ -133,8 +133,8 @@ function isFieldValid(field: TField): boolean {
 	* @param app - Obsidian app object.
 	* @returns TEntity item or null.
 */
-export async function getEntitySchema(app: App): Promise<TEntity | null> {
-	const currentFolder = await getCurrentFolder(app)
+export async function getEntitySchema(app: App, defaultFolder?: string): Promise<TEntity | null> {
+	const currentFolder = defaultFolder ? defaultFolder : await getCurrentFolder(app)
 	const entity = readMDFile<TEntity>(app, `${currentFolder}/entity.md`)
 	if (!entity) new Notice('Fail to load entity.md')
 	return entity

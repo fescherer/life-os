@@ -45,9 +45,9 @@ export class Card {
 		const imageField = this.entitySchema.fields.find((field) => field.type == 'file')
 		const imageContainer = cardContainer.createDiv({ cls: 'image-card-container' })
 		if (imageField) {
-			// TODO Make img-cover style
 			const currentFolder = await getCurrentFolder(this.app)
-			const fileImage = getFileByPath(this.app, `${currentFolder}/${this.data[imageField.name]}`)
+			const firstImage = this.data[imageField.name].split('||')[0]
+			const fileImage = getFileByPath(this.app, `${currentFolder}/${firstImage}`)
 			if (fileImage) {
 				const imagePath = this.app.vault.getResourcePath(fileImage);
 				imageContainer.createEl('img', {
