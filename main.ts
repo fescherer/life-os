@@ -1,68 +1,52 @@
-import { Plugin } from "obsidian";
+// in main.ts
+import { Notice, Plugin, WorkspaceLeaf } from "obsidian";
 import { ModalDataForm } from "src/modal/data/modal";
 import { ModalSchemaForm } from "src/modal/schema/modal";
-import { DEFAULT_SETTINGS, TPluginSettings } from "src/types/util";
 import { getCurrentFolder } from "src/utils/folderName";
-import { CardInteractionManager } from "src/views/card/card-interation";
 import { CARD_VIEW_TYPE, CardView } from "src/views/card/view";
 
-
 export default class DynamicInterfacePlugin extends Plugin {
-	interactionManager: CardInteractionManager;
-	settings: TPluginSettings;
-
-
-
-
 	async onload() {
-		await this.loadSettings();
-
-		// Example: use the value
-		console.log("Config value:", this.settings.currentFolderToView);
-
-		console.warn("Loading Fennec Tales Studio's Plugin");
-
 		this.registerView(
 			CARD_VIEW_TYPE,
-			(leaf) => new CardView(leaf, this, this.settings.currentFolderToView)
+			(leaf) => new CardView(leaf, this)
 		);
 
-		this.addRibbonIcon('dice', 'Activate view', async () => {
-			const currentFolder = await getCurrentFolder(this.app)
-			if (currentFolder) {
-				this.settings.currentFolderToView = currentFolder
-				await this.saveSettings();
-
-
-				// Optionally refresh the current CardView
-				const leaves = this.app.workspace.getLeavesOfType(CARD_VIEW_TYPE);
-				for (const leaf of leaves) {
-					const view = leaf.view as CardView;
-					view.setFolder(currentFolder); // You’d implement this in your CardView
-				}
+		this.addRibbonIcon("dice", "Activate view", async () => {
+			const currentFolder = await getCurrentFolder(this.app);
+			if (!currentFolder) {
+				new Notice("No data schema found");
+				return;
 			}
 
+			// 👉 Check if a CardView for this folder already exists
+			const existingLeaf = this.app.workspace.getLeavesOfType(CARD_VIEW_TYPE)
+				.find((leaf) => {
+					const view = leaf.view as CardView;
+					return view.currentFolder === currentFolder;
+				});
+
+			if (existingLeaf) {
+				// focus existing tab
+				this.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
+				return;
+			}
+
+			// Otherwise, create a new one
 			const leaf = this.app.workspace.getLeaf(true);
 			await leaf.setViewState({
 				type: CARD_VIEW_TYPE,
-				active: true
+				active: true,
+				state: { currentFolder },
 			});
 		});
 
-		this.addRibbonIcon("table", "Create new schema", async () => {
+		this.addRibbonIcon("table", "Create new schema", () => {
 			new ModalSchemaForm(this.app).open();
-		})
+		});
 
 		this.addRibbonIcon("newspaper", "Create new data block", () => {
 			new ModalDataForm(this.app).open();
-		})
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
+		});
 	}
 }
